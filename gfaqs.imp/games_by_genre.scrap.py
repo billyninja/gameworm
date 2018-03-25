@@ -32,7 +32,7 @@ def fetch(gcode, page_count, persist_raw=False):
         fh = open(rfilename, "r")
         text = fh.read()
         fh.close()
-        return text
+        return text, True
 
     final_url = CRAWL_URL % (gcode, page_count)
     t1 = datetime.now()
@@ -47,7 +47,7 @@ def fetch(gcode, page_count, persist_raw=False):
         fh.write(resp.text)
         fh.close()
 
-    return resp.text
+    return resp.text, False
 
 
 def check_storage():
@@ -113,7 +113,7 @@ def run():
             continue
 
         genr_rank = (name, code, [])
-        text = fetch(code, 0, True)
+        text, local = fetch(code, 0, True)
         sleep(1)
 
         count = text.split('class="totalresults', 1)[1].split(">")[1].strip().split(" ")[0]
@@ -124,14 +124,14 @@ def run():
 
         for pcount in range(total_page_count):
             if pcount > 0:
-                text = fetch(code, pcount, True)
+                text, local = fetch(code, pcount, True)
                 parse_rank_table(text, code, pcount)
-                sleep(1)
-        # -- finished walking through all pages!
+                if not local:
+                    sleep(1)
 
         per_genre.append(genr_rank)
-        "games_by_genre_partial.%s.json" % (name.replace(" >> ", "__"))
-        partial_path = os.path.join(STORAGE_PARTIALS, )
+        filename = "games_by_genre_partial.%s.json" % (name.replace(" >> ", "__"))
+        partial_path = os.path.join(STORAGE_PARTIALS, filename)
 
         fh = open(partial_path, "w")
         fh.write(json.dumps(genr_rank))
@@ -144,7 +144,7 @@ def run():
 
 if __name__ == '__main__':
     check_storage()
-    ct = fetch(54, 0, True)
+    ct, local = fetch(54, 0, True)
     tt = parse_rank_table(ct, 54, 0)
 
     run()
