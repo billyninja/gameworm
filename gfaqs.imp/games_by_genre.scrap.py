@@ -39,7 +39,7 @@ def fetch(page_count, persist_raw=False):
         raise Exception("CONNECTION ERROR!!! %s Received: %d - \n\n\n %s", final_url, resp.status_code, resp.text)
 
     if persist_raw and STORAGE_RAW:
-        filename = "code_%d_page_%d.json" % (code)
+        filename = "code_%d_page_%d.json" % (code, page_count)
         fh = open(os.path.join(STORAGE_RAW, filename), "w")
         fh.write(resp.text)
         fh.close()
