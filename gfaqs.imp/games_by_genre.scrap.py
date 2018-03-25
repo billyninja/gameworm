@@ -1,3 +1,4 @@
+import sys
 import os
 from time import sleep
 import math
@@ -104,11 +105,12 @@ def parse_rank_table(text, code, pcount):
     return resp
 
 
-def run():
+def run(excluded_genres=[]):
     for name, code in GENRES:
+
         # TEMP lets not scrap by subgenre for now
-        # TODO make it a proper setting
-        if " >> " in name:
+        # TODO make it a proper arg/setting
+        if (" >> " in name) or (code in excluded_genres):
             continue
 
         genr_rank = (name, code, [])
@@ -117,9 +119,6 @@ def run():
 
         count = text.split('class="totalresults', 1)[1].split(">")[1].strip().split(" ")[0]
         total_page_count = int(math.ceil(int(count) / PER_PAGE))
-
-        if code == 0:
-            continue
 
         for pcount in range(total_page_count):
             if pcount > 0:
@@ -142,9 +141,18 @@ def run():
     fh.close()
 
 
-if __name__ == '__main__':
-    check_storage()
-    ct, local = fetch(54, 0, True)
-    tt = parse_rank_table(ct, 54, 0)
+def proc_args():
+    excluded = []
+    for ag in sys.argv[1:]:
+        if ag.startswith("-X"):
+            for ex in ag.split("-X=")[1].split(","):
+                excluded.append(int(ex))
 
-    run()
+    return (excluded,)
+
+if __name__ == '__main__':
+    excluded, = proc_args()
+    check_storage()
+    # ct, local = fetch(54, 0, True)
+    # tt = parse_rank_table(ct, 54, 0)
+    run(excluded)
