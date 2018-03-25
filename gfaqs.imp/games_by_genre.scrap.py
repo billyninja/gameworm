@@ -86,7 +86,7 @@ for name, code in GENRES:
                 if n == 2:
                     plat_abbr = col.split('class="rmain">', 1)[1].split("</td>")[0].strip()
                     if plat_abbr not in PLATFORM_MAP:
-                        PLATFORM_MAP.updte({plat_abbr: {"slug": None}})
+                        PLATFORM_MAP.update({plat_abbr: {"slug": None}})
 
                 # Game Name And Link
                 elif n == 3:
