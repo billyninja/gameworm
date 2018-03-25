@@ -24,23 +24,17 @@ STORAGE_PARTIALS = "/tmp/gameworm_data_partials"
 STORAGE_RAW = "/tmp/gameworm_data_raw"
 
 
-for st in [STORAGE_PARTIALS, STORAGE_RAW]:
-    if not os.path.isdir(st):
-        os.mkdir(st)
+def fetch(gcode, page_count, persist_raw=False):
 
-
-def fetch(page_count, persist_raw=False):
-
-    rfilename = "code_%d_page_%d.json" % (code, page_count)
+    rfilename = "code_%d_page_%d.json" % (gcode, page_count)
     rfilename = os.path.join(STORAGE_RAW, rfilename)
-
     if persist_raw and STORAGE_RAW and os.path.isfile(rfilename):
         fh = open(rfilename, "r")
-        text = fh.readall()
+        text = fh.read()
         fh.close()
         return text
 
-    final_url = CRAWL_URL % (code, page_count)
+    final_url = CRAWL_URL % (gcode, page_count)
     t1 = datetime.now()
     resp = requests.get(final_url, headers=UA)
     print((datetime.now() - t1).total_seconds())
@@ -55,88 +49,102 @@ def fetch(page_count, persist_raw=False):
 
     return resp.text
 
-for name, code in GENRES:
 
-    # TEMP lets not scrap by subgenre for now
-    # TODO make it a proper setting
-    if " >> " in name:
-        continue
+def check_storage():
+    for st in [STORAGE_PARTIALS, STORAGE_RAW]:
+        if not os.path.isdir(st):
+            os.mkdir(st)
 
-    genr_rank = (name, code, [])
-    page_count = 0
-    text = fetch(0, True)
-    sleep(1)
 
-    count = text.split('class="totalresults', 1)[1].split(">")[1].strip().split(" ")[0]
-    total_page_count = math.ceil(int(count) / PER_PAGE)
+def parse_rank_table(text, code, pcount):
+    resp = []
 
-    if code == 0:
-        continue
+    try:
+        core1 = text.split('<table class="results">', 1)[1].split("</table>", 1)[0]
+    except IndexError:
+        return
 
-    for pcount in range(total_page_count):
-        t1 = datetime.now()
+    rows = core1.split("<tr>")
 
-        if pcount > 0:
-            text = fetch(pcount, True)
-            sleep(1)
+    for rw in rows:
+        plat_abbr = title = title_slug = game_id = deeplink = None
 
-        try:
-            core1 = text.split('<table class="results">', 1)[1].split("</table>", 1)[0]
-        except IndexError as e:
-            print(e)
+        cols = rw.split("<td ")
+        if not cols:
             continue
 
-        rows = core1.split("<tr>")
+        for n, col in enumerate(cols):
 
-        for rw in rows:
-            plat_abbr = title = title_slug = game_id = deeplink = None
+            # Plaform
+            if n == 2:
+                plat_abbr = col.split('class="rmain">', 1)[1].split("</td>")[0].strip()
+                if plat_abbr not in PLATFORM_MAP:
+                    PLATFORM_MAP.update({plat_abbr: {"slug": None}})
 
-            cols = rw.split("<td ")
-            if not cols:
+            # Game Name And Link
+            elif n == 3:
+                sspl = col.split('href="', 1)
+                deeplink = sspl[1].split('"')[0].strip()
+                dl_spl = deeplink.split("/")
+
+                # needless in the future
+                PLATFORM_MAP[plat_abbr]["slug"] = dl_spl[1].strip()
+                game_id, title_slug = dl_spl[2].split("-", 1)
+                print(game_id, title_slug)
+
+                title = sspl[1].split('">', 1)[1].split('</a>')[0]
+            else:
+                # TODO, grab rating, difficulty and gameplay hours.
                 continue
 
-            for n, col in enumerate(cols):
+        if not (plat_abbr or title or deeplink):
+            continue
+        resp.append((plat_abbr, title, game_id, title_slug, deeplink,))
 
-                # Plaform
-                if n == 2:
-                    plat_abbr = col.split('class="rmain">', 1)[1].split("</td>")[0].strip()
-                    if plat_abbr not in PLATFORM_MAP:
-                        PLATFORM_MAP.update({plat_abbr: {"slug": None}})
+    return resp
 
-                # Game Name And Link
-                elif n == 3:
-                    sspl = col.split('href="', 1)
-                    deeplink = sspl[1].split('"')[0].strip()
-                    dl_spl = deeplink.split("/")
 
-                    # needless in the future
-                    PLATFORM_MAP[plat_abbr]["slug"] = dl_spl[1].strip()
-                    game_id, title_slug = dl_spl[2].split("-", 1)
-                    print(game_id, title_slug)
+def run():
+    for name, code in GENRES:
 
-                    title = sspl[1].split('">', 1)[1].split('</a>')[0]
-                else:
-                    # TODO, grab rating, difficulty and gameplay hours.
-                    continue
+        # TEMP lets not scrap by subgenre for now
+        # TODO make it a proper setting
+        if " >> " in name:
+            continue
 
-            if not (plat_abbr or title or deeplink):
-                continue
+        genr_rank = (name, code, [])
+        text = fetch(code, 0, True)
+        sleep(1)
 
-            genr_rank[2].append((plat_abbr, title, deeplink,))
+        count = text.split('class="totalresults', 1)[1].split(">")[1].strip().split(" ")[0]
+        total_page_count = math.ceil(int(count) / PER_PAGE)
 
-        print((datetime.now() - t1).total_seconds())
-        print(genr_rank)
+        if code == 0:
+            continue
 
-    # -- finished walking through all pages!
+        for pcount in range(total_page_count):
+            if pcount > 0:
+                text = fetch(code, pcount, True)
+                parse_rank_table(text, code, pcount)
+                sleep(1)
+        # -- finished walking through all pages!
 
-    per_genre.append(genr_rank)
-    "games_by_genre_partial.%s.json" % (name.replace(" >> ", "__"))
-    partial_path = os.path.join(STORAGE_PARTIALS, )
+        per_genre.append(genr_rank)
+        "games_by_genre_partial.%s.json" % (name.replace(" >> ", "__"))
+        partial_path = os.path.join(STORAGE_PARTIALS, )
 
-    fh = open(partial_path, "w")
-    fh.write(json.dumps(genr_rank))
+        fh = open(partial_path, "w")
+        fh.write(json.dumps(genr_rank))
+        fh.close()
+
+    fh = open("per_genre.json", "w")
+    fh.write(json.dumps(per_genre))
     fh.close()
 
-fh = open("per_genre.json", "w")
-fh.write(json.dumps(per_genre))
-fh.close()
+
+if __name__ == '__main__':
+    check_storage()
+    ct = fetch(54, 0, True)
+    tt = parse_rank_table(ct, 54, 0)
+
+    run()
