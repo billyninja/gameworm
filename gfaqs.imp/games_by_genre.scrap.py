@@ -30,6 +30,16 @@ for st in [STORAGE_PARTIALS, STORAGE_RAW]:
 
 
 def fetch(page_count, persist_raw=False):
+
+    rfilename = "code_%d_page_%d.json" % (code, page_count)
+    rfilename = os.path.join(STORAGE_RAW, rfilename)
+
+    if persist_raw and STORAGE_RAW and os.path.isfile(rfilename):
+        fh = open(rfilename, "r")
+        text = fh.readall()
+        fh.close()
+        return text
+
     final_url = CRAWL_URL % (code, page_count)
     t1 = datetime.now()
     resp = requests.get(final_url, headers=UA)
@@ -39,8 +49,7 @@ def fetch(page_count, persist_raw=False):
         raise Exception("CONNECTION ERROR!!! %s Received: %d - \n\n\n %s", final_url, resp.status_code, resp.text)
 
     if persist_raw and STORAGE_RAW:
-        filename = "code_%d_page_%d.json" % (code, page_count)
-        fh = open(os.path.join(STORAGE_RAW, filename), "w")
+        fh = open(rfilename, "w")
         fh.write(resp.text)
         fh.close()
 
