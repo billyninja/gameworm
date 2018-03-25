@@ -106,7 +106,6 @@ def parse_rank_table(text, code, pcount):
 
 def run():
     for name, code in GENRES:
-
         # TEMP lets not scrap by subgenre for now
         # TODO make it a proper setting
         if " >> " in name:
@@ -125,7 +124,8 @@ def run():
         for pcount in range(total_page_count):
             if pcount > 0:
                 text, local = fetch(code, pcount, True)
-                parse_rank_table(text, code, pcount)
+                tt = parse_rank_table(text, code, pcount)
+                genr_rank[2].append(tt)
                 if not local:
                     sleep(1)
 
@@ -134,7 +134,7 @@ def run():
         partial_path = os.path.join(STORAGE_PARTIALS, filename)
 
         fh = open(partial_path, "w")
-        fh.write(json.dumps(genr_rank))
+        fh.write(json.dumps(per_genre))
         fh.close()
 
     fh = open("per_genre.json", "w")
