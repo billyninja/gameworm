@@ -74,7 +74,7 @@ for name, code in GENRES:
         rows = core1.split("<tr>")
 
         for rw in rows:
-            plat_abbr, title, title_slug, game_id, deeplink, = None, None, None
+            plat_abbr = title = title_slug = game_id = deeplink = None
 
             cols = rw.split("<td ")
             if not cols:
