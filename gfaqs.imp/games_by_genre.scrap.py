@@ -9,7 +9,7 @@ from base64 import b64decode
 
 BASE_URL = b"aF90X3RfcF9zXzpfL18vX2dfYV9tX2VfZl9hX3Ffc18uX2dfYV9tX2Vfc19wX29fdF8uX2Nfb19t"
 BASE_URL = b64decode(BASE_URL).decode("ascii").replace("_", "")
-PATH = "/games/rankings?platform=0&genre=%d&list_type=rate&view_type=0&dlc=0&min_votes=1&page=%d"
+PATH = "/games/rankings?platform=0&genre=%d&list_type=rate&view_type=0&dlc=0&min_votes=2&page=%d"
 CRAWL_URL = "%s%s" % (BASE_URL, PATH)
 PER_PAGE = 50
 UA = {
