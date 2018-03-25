@@ -47,6 +47,12 @@ def fetch(page_count, persist_raw=False):
     return resp.text
 
 for name, code in GENRES:
+
+    # TEMP lets not scrap by subgenre for now
+    # TODO make it a proper setting
+    if " >> " in name:
+        continue
+
     genr_rank = (name, code, [])
     page_count = 0
     text = fetch(0, True)
@@ -115,7 +121,8 @@ for name, code in GENRES:
     # -- finished walking through all pages!
 
     per_genre.append(genr_rank)
-    partial_path = ".data/partials/kb_partial.%s.json" % name.replace(" >> ", "__")
+    "games_by_genre_partial.%s.json" % (name.replace(" >> ", "__"))
+    partial_path = os.path.join(STORAGE_PARTIALS, )
 
     fh = open(partial_path, "w")
     fh.write(json.dumps(genr_rank))
