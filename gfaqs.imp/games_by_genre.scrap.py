@@ -116,7 +116,7 @@ def run():
         sleep(1)
 
         count = text.split('class="totalresults', 1)[1].split(">")[1].strip().split(" ")[0]
-        total_page_count = math.ceil(int(count) / PER_PAGE)
+        total_page_count = int(math.ceil(int(count) / PER_PAGE))
 
         if code == 0:
             continue
