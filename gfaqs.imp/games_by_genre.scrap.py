@@ -25,7 +25,7 @@ STORAGE_RAW = "/tmp/gameworm_data_raw"
 
 
 for st in [STORAGE_PARTIALS, STORAGE_RAW]:
-    if not os.isdir(st):
+    if not os.path.isdir(st):
         os.mkdir(st)
 
 
