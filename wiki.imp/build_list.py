@@ -209,6 +209,20 @@ def open_article(entry, plat_slug, prev_redir=False):
     clength = 0
     redir = False
     redir_title = ""
+    out_tty = ""
+
+    if "query" not in resp:
+        print(entry)
+        print(d1("premature fail!! empty content!"))
+        print(d1(resp))
+        return
+
+    if "pages" not in resp["query"]:
+        print(entry)
+        print(d1("premature fail!! empty content!"))
+        print(d1(resp))
+        return
+
     for pid, content in resp["query"]["pages"].items():
         if int(pid) > 0:
             rev0 = content["revisions"][0]["*"]
@@ -232,16 +246,16 @@ def open_article(entry, plat_slug, prev_redir=False):
                         redir_title = pos.split("]]", 1)[0]
                         print(n1("found desambiguation! -->"), redir_title)
                         break
-    out = "%s Len:%d " % (entry, clength,)
+    out_tty = "%s Len:%d " % (entry, clength,)
     if hit and not redir:
         digest(rev0)
-        out = b1(out)
+        out_tty = b1(out_tty)
     else:
         if ensured:
-            out = d1(out)
+            out_tty = d1(out_tty)
         else:
-            out = n1(out)
-    print("[%s]" % plat_slug, out)
+            out_tty = n1(out_tty)
+    print("[%s]" % plat_slug, out_tty)
 
     if redir and redir_title and not prev_redir:
         print(w1("going in for redir!"))
