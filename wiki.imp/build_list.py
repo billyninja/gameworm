@@ -47,7 +47,7 @@ def extract_from_table(working_set, revision_content, title):
         rows = tb.split("|-\n|")
         print(len(rows), "rows!")
         for rr in rows:
-            rr = rr.replace('\n', '').replace("'", "")
+            rr = rr.replace('\n', '')
             try:
                 raw_title = rr.split("|")[0]
                 clean = _clean_entry(raw_title)
@@ -77,7 +77,10 @@ def extract_from_list(working_set, revision_content, title):
 
 
 def _clean_entry(entry):
-    clean = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>|{{[^{{]+?}}', '', entry, flags=re.I).strip()
+    clean = re.sub(
+        'id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>|{{[^{{]+?}}',
+        '', entry, flags=re.I
+    ).strip().lstrip('\'').rstrip('\'')
 
     if len(clean) < 2 or ("class=" in clean) or ("style=" in clean) or clean.startswith("{{"):
         print(entry, clean)
@@ -158,7 +161,7 @@ def join_partials(st_path):
         fh = open(fpath, "r")
         fcontent = fh.read()
         data = json.loads(fcontent)
-        plat_slug = trim_plat_slug()
+        plat_slug = trim_plat_slug(data["title"])
         for ss in data["set"]:
             all_titles.append((ss, plat_slug))
         fh.close()
@@ -193,7 +196,7 @@ def n1(ss):
 def digest(rev):
     try:
         info_begin = rev.split("{{Infobox", 1)[1]
-        print(b1(len(info)))
+        print(b1(len(info_begin)))
     except:
         print(w1("no infobox! deal with it later!"))
 
