@@ -5,7 +5,7 @@ import math
 import json
 from datetime import datetime
 import requests
-from constants import GENRES
+from constants import GENRES, STORAGE_PARTIALS, STORAGE_RAW
 from base64 import b64decode
 
 BASE_URL = b"aF90X3RfcF9zXzpfL18vX2dfYV9tX2VfZl9hX3Ffc18uX2dfYV9tX2Vfc19wX29fdF8uX2Nfb19t"
@@ -20,9 +20,6 @@ UA = {
 
 per_genre = []
 PLATFORM_MAP = {}
-
-STORAGE_PARTIALS = "/tmp/gameworm_data_partials"
-STORAGE_RAW = "/tmp/gameworm_data_raw"
 
 
 def fetch(gcode, page_count, persist_raw=False):
@@ -55,6 +52,17 @@ def check_storage():
     for st in [STORAGE_PARTIALS, STORAGE_RAW]:
         if not os.path.isdir(st):
             os.mkdir(st)
+
+    presented_partials = []
+    for partial in os.listdir(STORAGE_PARTIALS):
+        spl = partial.split("games_by_genre_partial.", 1)
+        if len(spl) > 1:
+            gname = spl[1].split(".json", 1)[0]
+            for gn in GENRES:
+                if gname == gn[0]:
+                    presented_partials.append(gn[1])
+
+    return presented_partials
 
 
 def parse_rank_table(text, code, pcount):
@@ -105,17 +113,16 @@ def parse_rank_table(text, code, pcount):
     return resp
 
 
-def run(excluded_genres=[]):
+def run(included=[], excluded=[]):
     for name, code in GENRES:
 
         # TEMP lets not scrap by subgenre for now
         # TODO make it a proper arg/setting
-        if (" >> " in name) or (code in excluded_genres):
+        if (" >> " in name) or (excluded and code in excluded) or (included and code not in included):
             continue
-
         genr_rank = (name, code, [])
         text, local = fetch(code, 0, True)
-        sleep(1)
+        sleep(3)
 
         count = text.split('class="totalresults', 1)[1].split(">")[1].strip().split(" ")[0]
         total_page_count = int(math.ceil(int(count) / PER_PAGE))
@@ -126,7 +133,7 @@ def run(excluded_genres=[]):
                 tt = parse_rank_table(text, code, pcount)
                 genr_rank[2].append(tt)
                 if not local:
-                    sleep(1)
+                    sleep(3)
 
         per_genre.append(genr_rank)
         filename = "games_by_genre_partial.%s.json" % (name.replace(" >> ", "__"))
@@ -142,17 +149,26 @@ def run(excluded_genres=[]):
 
 
 def proc_args():
-    excluded = []
+    included, excluded = [], []
+
     for ag in sys.argv[1:]:
+        if ag.startswith("-I"):
+            for ex in ag.split("-I=")[1].split(","):
+                included.append(int(ex))
+
         if ag.startswith("-X"):
             for ex in ag.split("-X=")[1].split(","):
                 excluded.append(int(ex))
 
-    return (excluded,)
+    return (included, excluded,)
+
 
 if __name__ == '__main__':
-    excluded, = proc_args()
-    check_storage()
+    included, excluded, = proc_args()
+    partials = check_storage()
+    excluded += partials
+    excluded += [0]  # just ensuring it wont try to parse 0 (all games at once)
     # ct, local = fetch(54, 0, True)
     # tt = parse_rank_table(ct, 54, 0)
-    run(excluded)
+
+    run(included, excluded)
