@@ -4,6 +4,7 @@ import json
 from constants import DESIRED_LISTS_SET
 from datetime import datetime
 import re
+from tag_match import tag_match
 
 XPL = "https://en.wikipedia.org/w/api.php?format=json&" +\
       "action=query&prop=revisions&rvprop=content&titles=%s"
@@ -67,8 +68,10 @@ def extract_from_list(working_set, revision_content, title):
     print("# TODO, understand list markup properly!")
     spl = revision_content.split("[[")
     for entry in spl:
+
         if ("List of" in entry) or ("Lists of" in entry) or ("Category:" in entry):
             continue
+
         entry = entry.split("]]", 1)[0]
         clean = _clean_entry(entry)
         if not clean:
@@ -84,7 +87,7 @@ def _clean_entry(entry):
 
     if len(clean) < 2 or ("class=" in clean) or ("style=" in clean) or clean.startswith("{{"):
         print(entry, clean)
-        return None
+        return ""
 
     if "[[" in clean and "]]" not in clean:
         clean += "]]"
@@ -161,7 +164,7 @@ def join_partials(st_path):
         fh = open(fpath, "r")
         fcontent = fh.read()
         data = json.loads(fcontent)
-        plat_slug = trim_plat_slug(data["title"])
+        plat_slug = _trim_plat_slug(data["title"])
         for ss in data["set"]:
             all_titles.append((ss, plat_slug))
         fh.close()
@@ -193,12 +196,78 @@ def n1(ss):
     return "\033[1m\033[92m%s\033[0m --" % (ss)
 
 
+expected_info_fields = ("title", "image", "developer", "publisher", "designer", "composer", "engine", "released")
+
+
 def digest(rev):
-    try:
-        info_begin = rev.split("{{Infobox", 1)[1]
-        print(b1(len(info_begin)))
-    except:
+    field_hits = 0
+    expected_values = {
+        "title": None,
+        "image": None,
+        "caption": None,
+        "developer": None,
+        "publisher": None,
+        "designer": None,
+        "composer": None,
+        "engine": None,
+        "released": None,
+        "genre": None,
+        "modes": None,
+        "series": None,
+        "director": None,
+        "producer": None,
+        "programmer": None,
+        "artist": None,
+        "writer": None,
+        "platforms": None,
+        "creator": None,
+        "first release version": None,
+        "first release date": None,
+        "latest release version": None,
+        "latest release date": None,
+        "platform of origin": None,
+        "year of inception": None,
+        "spinoffs": None,
+        "first release": None,
+    }
+    meta = {
+        "is_series": False,
+        "is_vg": False,
+        "hybrid_article": False,
+    }
+    expected_info_fields = expected_values.keys()
+
+    ipos = rev.find("{{Infobox")
+    if ipos >= 0:
+        info = tag_match(rev[ipos:])
+        info_spl = info.split("\n|")
+
+        subject = info_spl[0].lower()
+        meta["is_vg"] = ("video game" in subject) or ("VG" in subject)
+        meta["is_series"] = "series" in subject
+        if not meta["is_vg"]:
+            meta["is_vg"] = (("video game" in info) or ("==Video game" in rev) or ("== Video game" in rev))
+            meta["hybrid_article"] = meta["is_vg"]
+
+            return expected_values, meta
+
+        for chunk in info_spl[1:]:
+            if "=" not in chunk:
+                continue
+
+            field, value = chunk.split("=", 1)
+            field = _clean_entry(field).lower()
+
+            if field in expected_info_fields:
+                expected_values[field] = value
+                if len(value) > 0:
+                    field_hits += 1
+            else:
+                print("unexpected field: ", field, "with value: ", value)
+    else:
         print(w1("no infobox! deal with it later!"))
+    print("info hits: ", field_hits)
+    return expected_values, meta
 
 
 def open_article(entry, plat_slug, prev_redir=False):
@@ -247,22 +316,35 @@ def open_article(entry, plat_slug, prev_redir=False):
                         print(n1("found desambiguation! -->"), redir_title)
                         break
     out_tty = "%s Len:%d " % (entry, clength,)
-    if hit and not redir:
-        digest(rev0)
-        out_tty = b1(out_tty)
+    if redir and redir_title and not prev_redir:
+        print(w1("going in for redir!"))
+        return open_article(redir_title, plat_slug, entry)
+
+    if hit:
+        info, meta = digest(rev0)
+
+        if meta["is_series"]:
+            out_tty += w1("-is series!-")
+
+        if meta["is_vg"]:
+            out_tty += b1("-is vg!-")
+        else:
+            out_tty += d1("IGNORE! NOT A GAME!!!")
+
+        out_tty += b1(out_tty)
+        print(out_tty)
+        return info, meta
     else:
         if ensured:
             out_tty = d1(out_tty)
         else:
             out_tty = n1(out_tty)
-    print("[%s]" % plat_slug, out_tty)
 
-    if redir and redir_title and not prev_redir:
-        print(w1("going in for redir!"))
-        open_article(redir_title, plat_slug, entry)
+    print(out_tty)
+    return None, None
 
 
-def trim_plat_slug(plat):
+def _trim_plat_slug(plat):
     plat_slug = plat.strip().replace(" ", "_").lower()
     if "list_of_" in plat_slug:
         plat_slug = plat_slug.split("list_of_", 1)[1].split("_games")[0].strip()
@@ -273,7 +355,7 @@ def trim_plat_slug(plat):
 
 def crawl_in(all):
     for title, plat in all:
-        plat_slug = trim_plat_slug(plat)
+        plat_slug = _trim_plat_slug(plat)
         open_article(title, plat_slug)
 
 if __name__ == "__main__":
