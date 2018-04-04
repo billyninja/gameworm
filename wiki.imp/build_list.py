@@ -4,7 +4,7 @@ import json
 from constants import DESIRED_LISTS_SET
 from datetime import datetime
 import re
-from tag_match import tag_match
+from tag_match import tag_match, xtrip, _clean_entry, drop_none
 
 XPL = "https://en.wikipedia.org/w/api.php?format=json&" +\
       "action=query&prop=revisions&rvprop=content&titles=%s"
@@ -13,9 +13,19 @@ STORAGE_RAW = ".data/raws/"
 STORAGE_PARTIALS = ".data/partials/"
 
 
+def section_finder(rev):
+    for idx, subj in enumerate(re.finditer("=?=[\w ]+=?=", rev)):
+        if re.findall('(game)|(video game)', subj.group()):
+            return idx + 1
+
+    return None
+
+
 def fetch(titles, section=None, persist_raw=True):
     rfilename = "wiki_raw_%s.json" % (titles.replace("/", "_"))
     rfilename = os.path.join(STORAGE_RAW, rfilename)
+    if len(rfilename) > 256:
+        rfilename = "%s.json" % rfilename.split("''")[0]
 
     if persist_raw and STORAGE_RAW and os.path.isfile(rfilename):
         print("from storage!")
@@ -57,7 +67,7 @@ def extract_from_table(working_set, revision_content, title):
 
                 working_set["set"].append(clean)
             except IndexError:
-                pass
+                continue
 
 
 def extract_from_list(working_set, revision_content, title):
@@ -77,27 +87,6 @@ def extract_from_list(working_set, revision_content, title):
         if not clean:
             continue
         working_set["set"].append(clean)
-
-
-def _clean_entry(entry):
-    clean = re.sub(
-        'id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>|{{[^{{]+?}}',
-        '', entry, flags=re.I
-    ).strip().lstrip('\'').rstrip('\'')
-
-    if len(clean) < 2 or ("class=" in clean) or ("style=" in clean) or clean.startswith("{{"):
-        print(entry, clean)
-        return ""
-
-    if "[[" in clean and "]]" not in clean:
-        clean += "]]"
-
-    if clean.endswith("\""):
-        clean = clean[:-1]
-    if "]]" in clean:
-        clean = clean.split("]]")[0] + "]]"
-
-    return clean
 
 
 def parse_revision_content(storage, title, revision_content):
@@ -137,18 +126,24 @@ def prepare_storage():
     return path
 
 
-def build_set():
-    st_path = prepare_storage()
+def build_set(st_path):
 
     for title in DESIRED_LISTS_SET:
         print("Entering %s...\n" % title)
-        resp = fetch(title)
+
+        try:
+            resp = fetch(title)
+        except Exception as e:
+            print(e)
+            continue
+
         # it is a loop but just to get the first
         for k, pg in resp["query"]["pages"].items():
             try:
                 parse_revision_content(st_path, title, pg["revisions"][0]["*"])
             except Exception as e:
                 print(d1(e))
+                break
 
     return st_path
 
@@ -232,6 +227,7 @@ def digest(rev):
     }
     meta = {
         "is_series": False,
+        "subject": False,
         "is_vg": False,
         "hybrid_article": False,
     }
@@ -240,16 +236,21 @@ def digest(rev):
     ipos = rev.find("{{Infobox")
     if ipos >= 0:
         info = tag_match(rev[ipos:])
-        info_spl = info.split("\n|")
-
+        if "\n|" in info:
+            info_spl = info.split("\n|")
+        else:
+            info_spl = info.split(" |")
         subject = info_spl[0].lower()
-        meta["is_vg"] = ("video game" in subject) or ("VG" in subject)
+        meta["subject"] = subject
+        meta["is_vg"] = ("game" in subject) or ("vg" in subject)
         meta["is_series"] = "series" in subject
         if not meta["is_vg"]:
             meta["is_vg"] = (("video game" in info) or ("==Video game" in rev) or ("== Video game" in rev))
             meta["hybrid_article"] = meta["is_vg"]
-
-            return expected_values, meta
+            sec = section_finder(rev)
+            if sec:
+                xx = fetch(title, section=sec)
+            return drop_none(expected_values), meta
 
         for chunk in info_spl[1:]:
             if "=" not in chunk:
@@ -259,7 +260,7 @@ def digest(rev):
             field = _clean_entry(field).lower()
 
             if field in expected_info_fields:
-                expected_values[field] = value
+                expected_values[field] = xtrip(value)
                 if len(value) > 0:
                     field_hits += 1
             else:
@@ -267,13 +268,18 @@ def digest(rev):
     else:
         print(w1("no infobox! deal with it later!"))
     print("info hits: ", field_hits)
-    return expected_values, meta
+    return drop_none(expected_values), meta
 
 
 def open_article(entry, plat_slug, prev_redir=False):
     ensured = "[[" in entry
     entry = re.sub("[\[\[]|[\]\]]", "", entry)
-    resp = fetch(entry)
+
+    try:
+        resp = fetch(entry)
+    except Exception as e:
+        print(d1(e))
+
     hit = False
     clength = 0
     redir = False
@@ -284,13 +290,13 @@ def open_article(entry, plat_slug, prev_redir=False):
         print(entry)
         print(d1("premature fail!! empty content!"))
         print(d1(resp))
-        return
+        return None, resp
 
     if "pages" not in resp["query"]:
         print(entry)
         print(d1("premature fail!! empty content!"))
         print(d1(resp))
-        return
+        return None, resp
 
     for pid, content in resp["query"]["pages"].items():
         if int(pid) > 0:
@@ -341,7 +347,7 @@ def open_article(entry, plat_slug, prev_redir=False):
             out_tty = n1(out_tty)
 
     print(out_tty)
-    return None, None
+    return None, resp
 
 
 def _trim_plat_slug(plat):
@@ -353,12 +359,41 @@ def _trim_plat_slug(plat):
     return plat_slug
 
 
-def crawl_in(all):
+def crawl_in(st_path, all):
+
+    good = list()
+    bad = list()
     for title, plat in all:
         plat_slug = _trim_plat_slug(plat)
-        open_article(title, plat_slug)
+        info, meta = open_article(title, plat_slug)
+        if info and meta:
+            good.append((title, info, meta,))
+        else:
+            bad.append((title, plat_slug, meta,))
+
+    path = os.path.join(st_path, "good__ct_%d.json" % len(good))
+    fh = open(path, "w")
+
+    path = os.path.join(st_path, "bad__ct_%d.json" % len(bad))
+    fh2 = open(path, "w")
+
+    good_dump = json.dumps(good)
+    fh.write(good_dump)
+    fh.flush()
+    fh.close()
+
+    bad_dump = json.dumps(bad)
+    fh2.write(bad_dump)
+    fh2.flush()
+    fh2.close()
+
+    return len(good), len(good_dump), len(bad), len(bad_dump), len(all)
 
 if __name__ == "__main__":
-    st_path = build_set()
+    st_path = prepare_storage()
+    build_set(st_path)
     all = join_partials(st_path)
-    crawl_in(all)
+    g, gd, b, bd, al = crawl_in(st_path, all)
+    x = 1024 * 1024
+    out = "Good: %d (%2.fMB) // Bad: %d (%2.fMB) // all: %d" % (g, gd / x, b, bd / x, al)
+    print(out)

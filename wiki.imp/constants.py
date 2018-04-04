@@ -1,4 +1,4 @@
-DESIRED_LISTS_SET = set([
+DESIRED_PLATFORMS = set([
     'List_of_32X_games',
     'List of ColecoVision games',
     'List of Family Computer games',
@@ -186,3 +186,10 @@ DESIRED_LISTS_SET = set([
     'List of Wii games',
     'List of Atari 5200 games'
 ])
+
+
+# scrap article outcome
+class ArticleOutcome:
+    FOUND_NOT = -1
+    FOUND_UAT = 0
+    FOUND_ASSERTIVE = 1
