@@ -1,6 +1,6 @@
 import json
-import storage
 import requests
+from gameworm import file_storage
 
 
 class Driver:
@@ -18,13 +18,13 @@ class Driver:
         final_url = self._base_url % (title)
 
         if self.raws:
-            resp = storage.fetch_from_raws(self.raws, title)
+            resp = file_storage.fetch_from_raws(self.raws, title)
             if resp:
                 return resp
 
         resp = requests.get(final_url).text
 
         if self.raws:
-            storage.store_raw(self.raws, title, resp)
+            file_storage.store_raw(self.raws, title, resp)
 
         return json.loads(resp)

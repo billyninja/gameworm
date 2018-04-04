@@ -6,6 +6,10 @@ def warning(text, bold=False):
     return text
 
 
+def danger(text, bold=False):
+    return text
+
+
 def neutral_bland(text, bold=False):
     return text
 

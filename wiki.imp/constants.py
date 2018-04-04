@@ -193,3 +193,20 @@ class ArticleOutcome:
     FOUND_NOT = -1
     FOUND_UAT = 0
     FOUND_ASSERTIVE = 1
+
+
+ARTICLE_OUTCOME_DISPLAY = {
+    ArticleOutcome.FOUND_NOT: "FOUND_NOT",
+    ArticleOutcome.FOUND_UAT: "FOUND_UAT",
+    ArticleOutcome.FOUND_ASSERTIVE: "FOUND_ASSERTIVE",
+}
+
+
+class UnassertiveArticle:
+    CROSS_MEDIA_ARTICLE = 1
+    GAME_SERIES_ARTICLE = 2
+
+UAT_DISPLAY = {
+    UnassertiveArticle.CROSS_MEDIA_ARTICLE: "Cross-Media Article",
+    UnassertiveArticle.GAME_SERIES_ARTICLE: "Game-Series Article",
+}

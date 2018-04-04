@@ -1,7 +1,7 @@
-import tty_colors as colors
-import storage
 import json
 from tag_match import _clean_entry
+from gameworm import tty_colors as colors
+from gameworm import file_storage
 
 
 def extract_from_table(working_set, content, title):
@@ -55,7 +55,7 @@ def parse_revision_content(partials_path, plat, content):
     else:
         extract_from_list(platform_set, content, plat)
 
-    storage.store_partial(partials_path, plat, json.dumps(platform_set))
+    file_storage.store_partial(partials_path, plat, json.dumps(platform_set))
     return
 
 

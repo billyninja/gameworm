@@ -1,8 +1,3 @@
-# how to get from scrapping to organized DS object??
-#     1) clean and organize the scrapping
-#     2) get the correct build-order right.
-#
-from connect import fetch
 from constants import ArticleOutcome as Ao
 from store import (ArticleInfo, GameInfoCore, GameInfoAuthor, GameInfoCompany, GameInfoEngine, GameInfoRelease,
                    insert_article_info, insert_game_info)
@@ -38,13 +33,13 @@ def game_info_prepare(gi_dict):
     return
 
 
-def open_article(src_title, src_platform_slug, is_redir=False):
-    content = fetch()
+def open_article(conn, src_title, src_platform_slug, is_redir=False):
+    content = conn.fetch()
     assertive_info_hits = 0
 
     should, redir = should_redir(content)
     if should:
-        content = fetch(redir)
+        content = conn.fetch(redir)
 
     wpi, final_title, ib_subject, ib_meat = outer_peel(content)
     if wpi == -1:

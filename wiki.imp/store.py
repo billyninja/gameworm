@@ -35,5 +35,11 @@ class GameInfoRelease:
         pass
 
 
-def insert_into_db(article_info, game_info_core, authors=[], companies=[], engines=[], releases=[]):
+def insert_article_info(a, b, c, d):
+    print("here")
+    return
+
+
+def insert_game_info(article_info, game_info_core, authors=[], companies=[], engines=[], releases=[]):
+    print("here")
     return
