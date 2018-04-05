@@ -1,7 +1,18 @@
+import os
 import json
 from tag_match import _clean_entry
 from gameworm import tty_colors as colors
 from gameworm import file_storage
+
+
+def _trim_plat_slug(plat):
+    plat_slug = plat.strip().replace(" ", "_").lower()
+    if "list_of_" in plat_slug:
+        plat_slug = plat_slug.split("list_of_", 1)[1].split("_games")[0].strip()
+    elif "index_of_" in plat_slug:
+        plat_slug = plat_slug.split("index_of_", 1)[1].split("_games")[0].strip()
+
+    return plat_slug
 
 
 def extract_from_table(working_set, content, title):
@@ -31,6 +42,8 @@ def extract_from_list(working_set, content, title):
     # TODO, understand list markup properly!
     # TODO, understand list markup properly!
     print("# TODO, understand list markup properly!")
+    print("# TODO, understand list markup properly!")
+    print("# TODO, understand list markup properly!")
     spl = content.split("[[")
     for entry in spl:
 
@@ -59,11 +72,37 @@ def parse_revision_content(partials_path, plat, content):
     return
 
 
-def open_listings(conn, all_titles_path, desired_platforms):
+def join_partials(partials_path):
+    all_titles = []
+    for entry in os.listdir(partials_path):
+        fpath = os.path.join(partials_path, entry)
+        if not (os.path.isfile(fpath) and entry.endswith(".json")):
+            print("skipping %s" % entry)
+            continue
+
+        fh = open(fpath, "r")
+        fcontent = fh.read()
+        data = json.loads(fcontent)
+        plat_slug = _trim_plat_slug(data["title"])
+        for ss in data["set"]:
+            all_titles.append((ss, plat_slug))
+
+    all_titles = list(set(all_titles))
+
+    fname = "all_titles__ct_%d" % len(all_titles)
+    fname = os.path.join(partials_path, fname)
+
+    fh = open(fname, "w+")
+    fh.write(json.dumps(all_titles))
+    fh.flush()
+    fh.close()
+
+    return all_titles, fname
+
+
+def open_listings(conn, partials_path, desired_platforms):
 
     for plat in desired_platforms:
-        print("Entering %s...\n" % plat)
-
         try:
             resp = conn.fetch(plat)
         except Exception as e:
@@ -73,9 +112,11 @@ def open_listings(conn, all_titles_path, desired_platforms):
         # it is a loop but just to get the first
         for k, pg in resp["query"]["pages"].items():
             try:
-                parse_revision_content(all_titles_path, plat, pg["revisions"][0]["*"])
+                parse_revision_content(partials_path, plat, pg["revisions"][0]["*"])
             except Exception as e:
                 print(colors.danger(e, True))
                 break
 
-    return all_titles_path
+    all_titles, all_titles_path = join_partials(partials_path)
+
+    return all_titles, all_titles_path

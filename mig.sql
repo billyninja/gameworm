@@ -1,4 +1,4 @@
-CREATE DATABASE gameworm
+CREATE DATABASE gameworm_wikipedia
 WITH OWNER = postgres
 ENCODING = 'UTF8'
 TABLESPACE = pg_default
@@ -6,7 +6,7 @@ LC_COLLATE = 'en_US.UTF-8'
 LC_CTYPE = 'en_US.UTF-8'
 CONNECTION LIMIT = -1;
 
-\c gameworm;
+\c gameworm_wikipedia;
 
 CREATE TABLE public.article_info
 (

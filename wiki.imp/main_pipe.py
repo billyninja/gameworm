@@ -21,7 +21,7 @@ def open_article_to_tty(title, outcome, did_redir, uat, hits):
     msg = ao_tty_colors[outcome](title + " - " + ao_display, bold=True)
 
     if did_redir:
-        msg += " -> Redir" % bool(did_redir)
+        msg += " -> Redir"
 
     if uat:
         uat_display = UAT_DISPLAY.get(uat, "UNKNOW UAT %d" % outcome)
@@ -31,11 +31,11 @@ def open_article_to_tty(title, outcome, did_redir, uat, hits):
 
 
 if __name__ == "__main__":
-    raws_path, partials_path, all_titles_path = file_storage.check_and_config(imp="wiki")
+    raws_path, run_partials_path = file_storage.check_and_config(imp="wiki")
     conn = Driver(imp="wiki", raws=raws_path)
 
-    open_listings(conn, all_titles_path, DESIRED_PLATFORMS)
-    titles = file_storage.unpack_all_titles(all_titles_path)
-    for title in titles:
+    all_titles, all_titles_path = open_listings(conn, run_partials_path, DESIRED_PLATFORMS)
+
+    for title in all_titles:
         out, did_redir, uat, hits = open_article(conn, title[0], title[1])
         open_article_to_tty(title[0], out, did_redir, uat, hits)

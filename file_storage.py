@@ -20,9 +20,7 @@ def check_and_config(imp="wiki"):
     if not os.path.isdir(run_st):
         os.mkdir(run_st)
 
-    all_titles_st = os.path.join(run_st, "all_titles.json")
-
-    return raws_st, partials_st, all_titles_st
+    return raws_st, run_st
 
 
 def _prepare_rfilename(raws_path, title):
@@ -36,6 +34,10 @@ def _prepare_rfilename(raws_path, title):
 
 def fetch_from_raws(raws_path, title):
     rfilename = _prepare_rfilename(raws_path, title)
+
+    if not os.path.isfile(rfilename):
+        return None
+
     fh = open(rfilename, "r")
     text = fh.read()
     fh.close()
@@ -45,6 +47,14 @@ def fetch_from_raws(raws_path, title):
 
 def store_raw(raws_path, title, content):
     rfilename = _prepare_rfilename(raws_path, title)
+    fh = open(rfilename, "w")
+    fh.write(content)
+    fh.flush()
+    fh.close()
+
+
+def store_partial(partials_path, title, content):
+    rfilename = _prepare_rfilename(partials_path, title)
     fh = open(rfilename, "w")
     fh.write(content)
     fh.flush()

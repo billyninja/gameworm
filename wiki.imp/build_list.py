@@ -356,6 +356,7 @@ def _trim_plat_slug(plat):
         plat_slug = plat_slug.split("list_of_", 1)[1].split("_games")[0].strip()
     elif "index_of_" in plat_slug:
         plat_slug = plat_slug.split("index_of_", 1)[1].split("_games")[0].strip()
+
     return plat_slug
 
 
