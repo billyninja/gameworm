@@ -203,10 +203,16 @@ ARTICLE_OUTCOME_DISPLAY = {
 
 
 class UnassertiveArticle:
+    WRONG_ARTICLE = 0
     CROSS_MEDIA_ARTICLE = 1
     GAME_SERIES_ARTICLE = 2
+    NO_INFOBOX_ARTICLE = 3
+    CONFIRMED_BAD_LEAD = 4
 
 UAT_DISPLAY = {
+    UnassertiveArticle.WRONG_ARTICLE: "WRONG_ARTICLE",
+    UnassertiveArticle.CONFIRMED_BAD_LEAD: "CONFIRMED_BAD_LEAD",
     UnassertiveArticle.CROSS_MEDIA_ARTICLE: "Cross-Media Article",
     UnassertiveArticle.GAME_SERIES_ARTICLE: "Game-Series Article",
+    UnassertiveArticle.NO_INFOBOX_ARTICLE: "No Infobox Game Article",
 }

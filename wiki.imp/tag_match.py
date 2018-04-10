@@ -1,19 +1,30 @@
 import re
 
 
-def tag_match(text, op="{{", cl="}}"):
-    open = 0
+def tag_match(text, tagname="infobox", op="{{", cl="}}"):
+    # silly normalization
+    # {{ infobox | {{ INFOBOX | {{InfoBox
+    exp_out = "%s %s|%s%s" % (op, tagname, op, tagname)
+    exp_in = "%s%s" % (op, tagname.upper())
+    text = re.sub(exp_out, exp_in, text, 1, flags=re.I)
+
+    spl = text.split(exp_in, 1)
+    if len(spl) <= 1:
+        return None
+
+    text = exp_in + spl[1]
+    opn = 0
     n = len(op)
     final_pos = 0
     for idx, _ in enumerate(text):
         slc = text[idx:idx + n]
 
         if slc == op:
-            open += 1
+            opn += 1
         elif slc == cl:
-            open -= 1
+            opn -= 1
 
-        if open == 0:
+        if opn == 0:
             final_pos = idx + 2
             break
 
