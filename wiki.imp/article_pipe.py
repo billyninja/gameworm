@@ -1,3 +1,15 @@
+"""
+Stage of the pipeline responsible for collecting and parsing a game article from the wikipedia.
+
+    1) open a article
+    2) preliminar parse, findout out:
+        2.1) has a #REDIRECT directive in the response.
+        2.2) the article subject.
+        2.3) if it is assertive, ambigous, wrong etc.
+    3) further extract useful/stadarized data from the revision content.
+    4) insert in the DB.
+"""
+
 import re
 from tag_match import tag_match
 from constants import UnassertiveArticle
@@ -34,8 +46,9 @@ def inner_peel():
 
 ASSERTIVE_SUBJECTS = ["video game", "video games", "vg", "cvg"]
 CROSSMEDIA_SUBJECTS = ["media franchise", "animanga/header", "film", "television",
-                       "toy", "character", "comics character", "game", "comic book title",
-                       "comics character", "comics organization", "lego theme"]
+                       "toy", "character", "comics character", "game", "comic book title", "hollywood cartoon",
+                       "comics character", "comics organization", "lego theme", "comics meta series",
+                       "wrestling promotion"]
 GAME_SERIES_SUBJECTS = ["video game series", "video games series", "vg series", "video game character"]
 
 
@@ -53,10 +66,10 @@ def check_assertiveness(title, subject):
     if subject in CROSSMEDIA_SUBJECTS:
         return UnassertiveArticle.CROSS_MEDIA_ARTICLE
 
-    if subject in ["company", "person", "dot-com company", "aircraft begin", "software", "video game system"]:
+    if subject in ["company", "person", "dot-com company", "aircraft begin", "software", "video game system",
+                   "military conflict", "occupation", "settlement", "vg online service", "information appliance"]:
         return UnassertiveArticle.CONFIRMED_BAD_LEAD
 
-    import pdb; pdb.set_trace()
     return UnassertiveArticle.WRONG_ARTICLE  # should try desambig.
 
 
@@ -79,6 +92,7 @@ def extract_infobox(rev):
     try:
         infobox_meat = tag_match(rev, "infobox")
     except Exception as ex:
+        print(ex)
         import pdb; pdb.set_trace()
     if infobox_meat:
         subj = infobox_meat.split("{{INFOBOX")[1].split("|")[0]
@@ -91,7 +105,6 @@ def extract_infobox(rev):
 
 
 def extract_desambig(title, rev):
-    import pdb; pdb.set_trace()
     return False
 
 
@@ -106,7 +119,7 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     did_redir = False
 
     wpi, rev_content = outer_peel(content)
-    if wpi == -1:
+    if wpi == -1 or not rev_content:
         return Ao.FOUND_NOT, None, None, assertive_info_hits
 
     did_redir = wpi == "REDIR"
@@ -114,6 +127,8 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
         content = conn.fetch(rev_content)
         final_title = rev_content
         wpi, rev_content = outer_peel(content)
+        if wpi == -1 or not rev_content:
+            return Ao.FOUND_NOT, None, None, assertive_info_hits
 
     ib_subject, ib_meat = extract_infobox(rev_content)
 

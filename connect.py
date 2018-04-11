@@ -22,6 +22,7 @@ class Driver:
             if resp:
                 return resp
 
+        print("-/-")
         resp = requests.get(final_url).text
 
         if self.raws:
