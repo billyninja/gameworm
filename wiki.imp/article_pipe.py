@@ -11,7 +11,7 @@ Stage of the pipeline responsible for collecting and parsing a game article from
 """
 
 import re
-from tag_match import tag_match
+from tag_match import tag_match, _infobox_pre_clean, _clean_entry, xtrip, drop_none
 from constants import UnassertiveArticle
 from constants import ArticleOutcome as Ao
 from store import (ArticleInfo, GameInfoCore, GameInfoAuthor, GameInfoCompany, GameInfoEngine, GameInfoRelease,
@@ -135,11 +135,18 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     uat_type = check_assertiveness(final_title, ib_subject)
     if uat_type in [UnassertiveArticle.CROSS_MEDIA_ARTICLE, UnassertiveArticle.GAME_SERIES_ARTICLE]:
         uat_pointer = get_uat_pointer(final_title, content)
+        # TEMP
+        return Ao.FOUND_UAT, did_redir, None, 5
     elif uat_type is UnassertiveArticle.WRONG_ARTICLE:
         desambig = extract_desambig(final_title, rev_content)
         print("DESAMBIGUATION FOUND!!", desambig)
     elif uat_type is UnassertiveArticle.CONFIRMED_BAD_LEAD:
         return Ao.FOUND_NOT, did_redir, None, None
+    elif not ib_meat:
+        return Ao.NO_INFOBOX_ARTICLE, did_redir, None, None
+
+    ib_clean_meat = _infobox_pre_clean(ib_meat)
+    cti = digest(ib_clean_meat)
 
     # MOCK
     return Ao.FOUND_ASSERTIVE, did_redir, None, 5
@@ -154,4 +161,53 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     gi_core, authors, companies, engines, releases = game_info_prepare(game_info_dict)
     insert_game_info(gi_core, authors, companies, engines, releases)
 
-    return Ao.FOUND_ASSERTIVE, did_redir, uat_type, assertive_info_hits
+
+def digest(rev):
+    field_hits = 0
+    expected_values = {
+        "title": None,
+        "image": None,
+        "caption": None,
+        "developer": None,
+        "publisher": None,
+        "designer": None,
+        "composer": None,
+        "engine": None,
+        "released": None,
+        "genre": None,
+        "modes": None,
+        "series": None,
+        "director": None,
+        "producer": None,
+        "programmer": None,
+        "artist": None,
+        "writer": None,
+        "platforms": None,
+        "creator": None,
+        "first release version": None,
+        "first release date": None,
+        "latest release version": None,
+        "latest release date": None,
+        "platform of origin": None,
+        "year of inception": None,
+        "spinoffs": None,
+        "first release": None,
+    }
+    expected_info_fields = expected_values.keys()
+    info_spl = rev.split("\n|")
+    for chunk in info_spl[1:]:
+        if "=" not in chunk:
+            continue
+
+        field, value = chunk.split("=", 1)
+        field = _clean_entry(field).lower()
+
+        if field in expected_info_fields:
+            expected_values[field] = value
+            if len(value) > 0:
+                field_hits += 1
+        else:
+            print("unexpected field: ", field, "with value: ", value)
+
+    print("info hits: ", field_hits)
+    return drop_none(expected_values)

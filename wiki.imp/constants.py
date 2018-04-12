@@ -193,12 +193,14 @@ class ArticleOutcome:
     FOUND_NOT = -1
     FOUND_UAT = 0
     FOUND_ASSERTIVE = 1
+    NO_INFOBOX_ARTICLE = 2
 
 
 ARTICLE_OUTCOME_DISPLAY = {
     ArticleOutcome.FOUND_NOT: "FOUND_NOT",
     ArticleOutcome.FOUND_UAT: "FOUND_UAT",
     ArticleOutcome.FOUND_ASSERTIVE: "FOUND_ASSERTIVE",
+    ArticleOutcome.NO_INFOBOX_ARTICLE: "NO INFOBOX BUT ASSERTIVE",
 }
 
 

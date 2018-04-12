@@ -89,6 +89,14 @@ def drop_none(d):
     return d
 
 
+def _infobox_pre_clean(ib_meat):
+    ibc = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', ' ', ib_meat, flags=re.I)
+    ibc.replace("  ", " ")
+    ibc = re.sub('\n\s?\s\||\|\n\s', '\n|', ib_meat)
+
+    return ibc
+
+
 def _pre_clean(entry):
     return re.sub(
         'id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>|{{[^{{]+?}}',

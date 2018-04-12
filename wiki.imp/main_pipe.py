@@ -1,3 +1,4 @@
+"""bootstrap, start and control the pipeline as a whole."""
 import sys
 sys.path.append('../')
 
@@ -15,6 +16,7 @@ def open_article_to_tty(title, outcome, did_redir, uat, hits):
         Ao.FOUND_ASSERTIVE: colors.success,
         Ao.FOUND_UAT: colors.warning,
         Ao.FOUND_NOT: colors.neutral_bland,
+        Ao.NO_INFOBOX_ARTICLE: colors.neutral_bland,
     }
 
     ao_display = AO_DISPLAY.get(outcome, "UNKNOW ARTICLE OUTCOME %d" % outcome)
@@ -36,6 +38,16 @@ if __name__ == "__main__":
 
     all_titles, all_titles_path = open_listings(conn, run_partials_path, DESIRED_PLATFORMS)
 
+    stats = {}
+
+    def _reg_stats(out):
+        if out not in stats:
+            stats.update({out: 1})
+        else:
+            stats[out] += 1
+
     for title in all_titles:
         out, did_redir, uat, hits = open_article(conn, title[0], title[1])
+        _reg_stats(out)
         open_article_to_tty(title[0], out, did_redir, uat, hits)
+    print(stats)
