@@ -11,7 +11,7 @@ Stage of the pipeline responsible for collecting and parsing a game article from
 """
 
 import re
-from tag_match import tag_match, _infobox_pre_clean, _clean_entry, xtrip, drop_none
+from tag_match import tag_match, _infobox_pre_clean, _clean_entry, drop_none
 from constants import UnassertiveArticle
 from constants import ArticleOutcome as Ao
 from store import (ArticleInfo, GameInfoCore, GameInfoAuthor, GameInfoCompany, GameInfoEngine, GameInfoRelease,
@@ -40,8 +40,55 @@ def outer_peel(content):
     return wpi, rev
 
 
-def inner_peel():
-    return
+def inner_peel(rev):
+    field_hits = 0
+    expected_values = {
+        "title": None,
+        "image": None,
+        "caption": None,
+        "developer": None,
+        "publisher": None,
+        "designer": None,
+        "composer": None,
+        "engine": None,
+        "released": None,
+        "genre": None,
+        "modes": None,
+        "series": None,
+        "director": None,
+        "producer": None,
+        "programmer": None,
+        "artist": None,
+        "writer": None,
+        "platforms": None,
+        "creator": None,
+        "first release version": None,
+        "first release date": None,
+        "latest release version": None,
+        "latest release date": None,
+        "platform of origin": None,
+        "year of inception": None,
+        "spinoffs": None,
+        "first release": None,
+    }
+    expected_info_fields = expected_values.keys()
+    info_spl = rev.split("\n|")
+    for chunk in info_spl[1:]:
+        if "=" not in chunk:
+            continue
+
+        field, value = chunk.split("=", 1)
+        field = _clean_entry(field).lower()
+
+        if field in expected_info_fields:
+            expected_values[field] = value
+            if len(value) > 0:
+                field_hits += 1
+        else:
+            print("unexpected field: ", field, "with value: ", value)
+
+    print("info hits: ", field_hits)
+    return drop_none(expected_values)
 
 
 ASSERTIVE_SUBJECTS = ["video game", "video games", "vg", "cvg"]
@@ -113,8 +160,13 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     src_title = src_title.replace("&", "%26")
     src_title = src_title.split("|")[0]
     final_title = src_title
+    if ", The''" in final_title:
+        final_title = final_title.split(", The''")[1]
 
-    content = conn.fetch(src_title)
+    if "''" in final_title:
+        final_title = final_title.split("''")[0]
+
+    content = conn.fetch(final_title)
     assertive_info_hits = 0
     did_redir = False
 
@@ -146,7 +198,7 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
         return Ao.NO_INFOBOX_ARTICLE, did_redir, None, None
 
     ib_clean_meat = _infobox_pre_clean(ib_meat)
-    cti = digest(ib_clean_meat)
+    cti = inner_peel(ib_clean_meat)
 
     # MOCK
     return Ao.FOUND_ASSERTIVE, did_redir, None, 5
@@ -162,52 +214,7 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     insert_game_info(gi_core, authors, companies, engines, releases)
 
 
-def digest(rev):
-    field_hits = 0
-    expected_values = {
-        "title": None,
-        "image": None,
-        "caption": None,
-        "developer": None,
-        "publisher": None,
-        "designer": None,
-        "composer": None,
-        "engine": None,
-        "released": None,
-        "genre": None,
-        "modes": None,
-        "series": None,
-        "director": None,
-        "producer": None,
-        "programmer": None,
-        "artist": None,
-        "writer": None,
-        "platforms": None,
-        "creator": None,
-        "first release version": None,
-        "first release date": None,
-        "latest release version": None,
-        "latest release date": None,
-        "platform of origin": None,
-        "year of inception": None,
-        "spinoffs": None,
-        "first release": None,
-    }
-    expected_info_fields = expected_values.keys()
-    info_spl = rev.split("\n|")
-    for chunk in info_spl[1:]:
-        if "=" not in chunk:
-            continue
 
-        field, value = chunk.split("=", 1)
-        field = _clean_entry(field).lower()
-
-        if field in expected_info_fields:
-            expected_values[field] = value
-            if len(value) > 0:
-                field_hits += 1
-        else:
-            print("unexpected field: ", field, "with value: ", value)
-
-    print("info hits: ", field_hits)
-    return drop_none(expected_values)
+def release_breakdown(val):
+    plats = val.split("<br>")
+    import pdb; pdb.set_trace()

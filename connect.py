@@ -15,6 +15,7 @@ class Driver:
                          "action=query&prop=revisions&rvprop=content&titles=%s"
 
     def fetch(self, title, section=None, persist_raw=True):
+        title = title.replace("&", "%26")
         final_url = self._base_url % (title)
 
         if self.raws:
@@ -22,7 +23,7 @@ class Driver:
             if resp:
                 return resp
 
-        print("-/-")
+        print("-/-", title)
         resp = requests.get(final_url).text
 
         if self.raws:
