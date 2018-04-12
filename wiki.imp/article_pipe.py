@@ -166,6 +166,9 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     if "''" in final_title:
         final_title = final_title.split("''")[0]
 
+    if '•' in final_title:
+        final_title = final_title.strip('•')
+
     content = conn.fetch(final_title)
     assertive_info_hits = 0
     did_redir = False
