@@ -1,4 +1,8 @@
+"""text/tag extraction helpers."""
 import re
+from datetime import datetime, date
+from cons_platforms import PLATFORM_ALIASES
+from constants import REGIONS
 
 
 def tag_match(text, tagname="infobox", op="{{", cl="}}"):
@@ -194,6 +198,97 @@ def yolo_spl(text, sp, depth=1, op="{{", cl="}}"):
     return out
 
 
+def _is_noise(inp):
+    xx = inp.strip()
+    return xx in ["", " ", "*", "\n"]
+
+
+def _is_plat(inp):
+    xx = inp.strip()
+    for plt in PLATFORM_ALIASES.values():
+        if xx in plt:
+            return Platform(xx)
+
+
+def _is_date(inp):
+    patterns = [
+        "[[%Y in video games",
+        "[[%Y in video gaming",
+        "[[%Y in games",
+        "%Y",
+        "%B %d, %Y",
+        "%d %B %Y",
+        "%b %d, %Y",
+        "%B %Y",
+        "%B, %Y",
+    ]
+
+    for ptt in patterns:
+        try:
+            el = datetime.strptime(inp, ptt).date()
+            return el
+        except ValueError:
+            continue
+
+    return None
+
+
+class Platform:
+
+    def __init__(self, vl):
+        self.vl = vl
+
+    def __repr__(self):
+        return "<%s>" % self.vl
+
+
+class Region:
+
+    def __init__(self, vl):
+        self.vl = vl
+
+    def __repr__(self):
+        return "<%s>" % self.vl
+
+
+def _is_region(inp):
+    xx = inp.strip()
+    if xx in REGIONS:
+        return Region(xx)
+
+    return None
+
+
+def extract_sequence(inp):
+    spl = re.split("§|\||\:", inp)
+    sequence = []
+    extracted_parts = []
+    for ss in spl:
+        ss = ss.strip()
+        if _is_noise(ss):
+            continue
+
+        el = _is_date(ss)
+        if el and isinstance(el, date):
+            sequence.append(el)
+            extracted_parts.append(ss)
+            continue
+
+        el = _is_plat(ss)
+        if el and isinstance(el, Platform):
+            sequence.append(el)
+            continue
+
+        el = _is_region(ss)
+        if el and isinstance(el, Region):
+            sequence.append(el)
+            continue
+
+        # import pdb; pdb.set_trace()
+
+    return sequence
+
+
 if __name__ == "__main__":
     si = "{{ ASD REF:{{ QWE }} ZXC {{ asd 123}} {{ qwe {{ asd 123}} {{ qwe qwe}} qwe}} }}"
     slices = tag_extract(si)
@@ -201,5 +296,3 @@ if __name__ == "__main__":
     print(slices)
     for sli in slices:
         print(si[sli[0]:sli[1]])
-    s2 = " {{collapsible list|title=July 14, 1983|'''Arcade'''{{vgrelease|JP|July 14, 1983<ref>{{cite web|url=https://www.youtube.com/watch?v=cntz1GyM1Bs|title=Nintendo Direct 2.14.2013|work=Nintendo YouTube|publisher=[[YouTube]]|date=2013-02-14|accessdate=2013-02-16}}</ref><ref>{{cite web |url=https://kotaku.com/happy-30th-birthday-to-video-gamings-most-famous-broth-779535652 |title=Happy 30th Birthday to Video Gaming's Most Famous Brother |last=Good |first=Owen |date=2013-07-14 |website=[[Kotaku]] |publisher=[[Gizmodo Media Group]] |access-date=2018-03-08}}</ref>|NA|July 20, 1983}}'''Famicom/NES'''{{vgrelease|JP|September 9, 1983|NA|June 20, 1986|EU|September 1, 1986}}<u>Mario Bros. (Classic Series)</u>{{Vgrelease|EU|1993}}'''Atari 2600'''{{vgrelease|NA|1983}}'''Atari 5200'''{{vgrelease|NA|1983}}'''PC-88'''{{vgrelease|JP|February 1984}}'''Apple II'''{{vgrelease|NA|1984}}'''FM-7'''{{vgrelease|JP|1984}}'''NEC PC88'''{{vgrelease|JP|1984}}'''Commodore 64'''{{vgrelease|NA|1986}}'''Amstrad CPC'''{{vgrelease|EU|1987}}'''ZX Spectrum'''{{vgrelease|EU|1987}}'''Atari 7800'''{{vgrelease|NA|1988}}'''Atari 8-Bit'''{{vgrelease|NA|1989}}'''Game Boy Advance'''<br> e-Reader{{vgrelease|NA|November 11, 2002}}Famicom Mini{{vgrelease|JP|May 21, 2004}}'''Virtual Console'''<br><u>Wii</u>{{vgrelease|NA|November 19, 2006}}{{vgrelease|PAL|December 8, 2006}}{{vgrelease|JP|December 12, 2006|Korea|KR|December 30, 2008}}<u>Nintendo 3DS</u>{{vgrelease|JP|May 8, 2013|EU|January 9, 2014|NA|January 30, 2014}}<u>Wii U</u>{{vgrelease|JP|May 29, 2013|WW|June 20, 2013}}'''Nintendo Switch'''{{vgrelease|WW|September 27,2017}}}}"
-    xx = xtrip(s2)

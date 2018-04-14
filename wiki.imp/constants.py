@@ -187,6 +187,11 @@ DESIRED_PLATFORMS = set([
     'List of Atari 5200 games'
 ])
 
+REGIONS = ["China", "South Korea", "Austria", "Australia", "Asia", "Australasia", "Hong Kong", "Japan", "Europe", "Canada", "North America",
+           "United Kingdom", "United States", "Spain", "France", "Italy", "RS", "AS", "ROK", "ISR", "HKG", "SWE", "BR", "KR", "INT",
+           "CHN", "POL", "AUS", "AUT", "SK", "KP", "SA", "TUR", "UK", "USA", "US", "WW", "JP", "NZ", "RUS", "TWN", "KOR", "NA", "EU", "JPN", "KO", "RU", "NZL", "MEX", "FRA", "FIN", "TW", "CA", "GOA", "AU", "THA",
+           "CZ", "GER", "CZE", "BRA", "LA", "FR", "HK", "CAN", "IND", "DE", "PAL", "DEU", "ITA", "ESP", "EUR", "SEA"]
+
 
 # scrap article outcome
 class ArticleOutcome:

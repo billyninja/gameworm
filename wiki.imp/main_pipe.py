@@ -33,6 +33,16 @@ def open_article_to_tty(title, outcome, did_redir, uat, hits):
 
 
 if __name__ == "__main__":
+    # TMP
+    from tag_match import extract_sequence
+    import json
+    fh = open("samples.json", "r")
+    ct = fh.read()
+    releases = json.loads(ct)
+    for rr in releases:
+        sq = extract_sequence(rr)
+        import pdb; pdb.set_trace()
+
     raws_path, run_partials_path = file_storage.check_and_config(imp="wiki")
     conn = Driver(imp="wiki", raws=raws_path)
 
