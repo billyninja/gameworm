@@ -50,4 +50,13 @@ if __name__ == "__main__":
         out, did_redir, uat, hits = open_article(conn, title[0], title[1])
         _reg_stats(out)
         open_article_to_tty(title[0], out, did_redir, uat, hits)
+
+    from article_pipe import samples
+    import json
+
+    ff = open("samples.json", "w")
+    ff.write(json.dumps(samples))
+    ff.flush()
+    ff.close()
+
     print(stats)

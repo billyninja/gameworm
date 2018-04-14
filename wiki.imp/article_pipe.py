@@ -11,11 +11,14 @@ Stage of the pipeline responsible for collecting and parsing a game article from
 """
 
 import re
-from tag_match import tag_match, _infobox_pre_clean, _clean_entry, drop_none
+from tag_match import tag_match, _infobox_pre_clean, _clean_entry, drop_none, _ref_strip, yolo_spl
 from constants import UnassertiveArticle
 from constants import ArticleOutcome as Ao
 from store import (ArticleInfo, GameInfoCore, GameInfoAuthor, GameInfoCompany, GameInfoEngine, GameInfoRelease,
                    insert_article_info, insert_game_info)
+
+
+samples = []
 
 
 def outer_peel(content):
@@ -52,6 +55,7 @@ def inner_peel(rev):
         "composer": None,
         "engine": None,
         "released": None,
+        "release": None,
         "genre": None,
         "modes": None,
         "series": None,
@@ -72,7 +76,7 @@ def inner_peel(rev):
         "first release": None,
     }
     expected_info_fields = expected_values.keys()
-    info_spl = rev.split("\n|")
+    info_spl = yolo_spl(rev, "\n|")
     for chunk in info_spl[1:]:
         if "=" not in chunk:
             continue
@@ -81,8 +85,11 @@ def inner_peel(rev):
         field = _clean_entry(field).lower()
 
         if field in expected_info_fields:
-            expected_values[field] = value
-            if len(value) > 0:
+            if field == "release":
+                field = "released"
+
+            expected_values[field] = value.strip()
+            if len(expected_values[field]) > 0:
                 field_hits += 1
         else:
             print("unexpected field: ", field, "with value: ", value)
@@ -160,6 +167,7 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     src_title = src_title.replace("&", "%26")
     src_title = src_title.split("|")[0]
     final_title = src_title
+
     if ", The''" in final_title:
         final_title = final_title.split(", The''")[1]
 
@@ -202,6 +210,62 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
 
     ib_clean_meat = _infobox_pre_clean(ib_meat)
     cti = inner_peel(ib_clean_meat)
+    if "released" in cti:
+        # if cti["released"] == "{{Collapsible list":
+        #     import pdb; pdb.set_trace()
+
+        vals = _ref_strip(cti["released"])
+
+        # def _extract(v1, name="$VGrelease"):
+        #     expr = "{{%s" % name
+        #     spl = v1.split(expr)
+        #     if len(spl) <= 1:
+        #         return v1
+        #     arr = []
+        #     for ss in spl[1:]:
+        #         arr.append(ss.split("}}")[0])
+
+        #     return arr
+
+        # def _extract_plats(v2):
+        #     spl = v2.split("'''")
+        #     arr2 = []
+        #     for i, sp in enumerate(spl):
+        #         if i % 2:
+        #             arr2.append(sp)
+        #     return arr2
+
+        v1 = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', '', vals, flags=re.I)
+        v1 = re.sub("{{ vg|{{vg|{{Video\sgame\s", "{{$VG", v1, flags=re.I)
+        exp1 = "'''|',|\{\{\$VGrelease|\}\}|§,\s|§§|<br?\\>|''|{{\$VGy\||\n"
+        v2 = re.sub(exp1, "§", v1)
+        v3 = re.sub(exp1, "§", v2)
+        v4 = re.sub(exp1, "§", v3)
+        if "§" in v3:
+            spl = v3.split("§")
+            if v3.startswith("{{"):
+                spl = spl[1:]
+            parts = [y for y in filter(lambda x: len(x) > 0 and x not in ["", "\n* ", "\n"], spl)]
+            v4 = "§".join(parts)
+
+        v4 = re.sub(exp1, "§", v4)
+
+        def _acceptable(xpto):
+            if xpto in ["{{collapsible list", ""]:
+                return False
+            return True
+        accepted = False
+        for vv in [v4, v3, v2, v1, vals]:
+            if not _acceptable(vv):
+                continue
+            else:
+                accepted = True
+                v4 = vv
+                break
+
+        if not accepted:
+            v4 = "<FB>" + cti["released"]
+        samples.append(v4)
 
     # MOCK
     return Ao.FOUND_ASSERTIVE, did_redir, None, 5
@@ -215,7 +279,6 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
     game_info_dict, assertive_info_hits = inner_peel(wpi, final_title, ib_subject, ib_meat)
     gi_core, authors, companies, engines, releases = game_info_prepare(game_info_dict)
     insert_game_info(gi_core, authors, companies, engines, releases)
-
 
 
 def release_breakdown(val):

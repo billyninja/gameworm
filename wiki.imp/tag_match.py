@@ -97,6 +97,23 @@ def _infobox_pre_clean(ib_meat):
     return ibc
 
 
+def _ref_strip(val):
+    arr = []
+    val = re.sub("<ref|<\sref", "$OPT", val)
+    val = re.sub("</ref>", "$CLT", val)
+    spl = val.split("$OPT")
+    if len(spl) <= 1:
+        return val
+
+    arr.append(spl[0])
+    for p in spl[1:]:
+        p2 = p.split("$CLT")
+        if len(p2) > 1:
+            arr.append(p2[1])
+
+    return "".join(arr)
+
+
 def _pre_clean(entry):
     return re.sub(
         'id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>|{{[^{{]+?}}',
@@ -120,6 +137,61 @@ def _clean_entry(entry):
         clean = clean.split("]]")[0] + "]]"
 
     return clean
+
+
+def yolo_spl(text, sp, depth=1, op="{{", cl="}}"):
+    from copy import copy
+
+    lvl = 0
+    spl = []
+    l_sp = len(sp)
+    l_tg = len(op)
+
+    for idx, _ in enumerate(text):
+
+        tg_chunk = text[idx:idx + l_tg]
+
+        if tg_chunk == op:
+            lvl += 1
+            continue
+
+        if tg_chunk == cl:
+            lvl -= 1
+            continue
+
+        if lvl > depth:
+            continue
+
+        sp_chunk = text[idx:idx + l_sp]
+        if sp_chunk == sp:
+            spl.append(idx + l_sp)
+
+    out = []
+    spl2 = copy(spl)
+    for ss in spl2:
+        spl.append(ss - l_sp)
+
+    spl.sort()
+    last = len(spl) - 1
+
+    skip_next = False
+    for i, ss in enumerate(spl):
+        if i == 0:
+            out.append(text[:ss])
+            continue
+
+        if i == last:
+            out.append(text[ss:])
+            continue
+
+        if skip_next:
+            skip_next = False
+            continue
+
+        out.append(text[ss:spl[i + 1]])
+        skip_next = True
+
+    return out
 
 
 if __name__ == "__main__":
