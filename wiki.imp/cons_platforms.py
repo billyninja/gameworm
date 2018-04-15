@@ -39,7 +39,7 @@ PLATFORM_ALIASES = {
 
     # APPLE
     "APL2": ["Apple", "Apple II", "Apple IIGS"],
-    "MAC": ["Macintosh", "Mac", "Mac OS", "macOS", "OSX", "OS X", "Mac App Store", "Mac OS X"],
+    "MAC": ["Macintosh", "Mac", "Classic Mac OS", "Mac OS", "macOS", "OSX", "OS X", "Mac App Store", "Mac OS X"],
     "IOS": ["iPhone", "iPhone OS", "iPhone / iPod Touch", "iPad", "iPod Touch, iPhone", "iPhone", "iOS",
             "Apple App store", "App Store"],
 

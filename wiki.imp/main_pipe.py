@@ -34,15 +34,34 @@ def open_article_to_tty(title, outcome, did_redir, uat, hits):
 
 if __name__ == "__main__":
     # TMP
-    from tag_match import extract_sequence
+    from tag_match import extract_sequence, identify_sequence, sequence_p_r_d
     import json
+    from time import sleep
     fh = open("samples.json", "r")
     ct = fh.read()
+    cnt = 0
     releases = json.loads(ct)
     for rr in releases:
         sq = extract_sequence(rr)
-        import pdb; pdb.set_trace()
+        stype = identify_sequence(sq)
+        if stype == "P-R-D":
+            xx = sequence_p_r_d(sq)
+            print("PRD", len(xx))
+            cnt += 1
+        elif stype == "simple date":
+            cnt += 1
+            print("simple")
+        elif stype == "R-D":
+            cnt += 1
+            print("RD", len(xx))
+        elif stype == "D-P":
+            cnt += 1
+            print("DP", len(xx))
+        else:
+            print("x: miss", stype)
 
+    print(cnt)
+    raise ValueError(1)
     raws_path, run_partials_path = file_storage.check_and_config(imp="wiki")
     conn = Driver(imp="wiki", raws=raws_path)
 
