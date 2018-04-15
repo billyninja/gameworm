@@ -94,9 +94,16 @@ def drop_none(d):
 
 
 def _infobox_pre_clean(ib_meat):
-    ibc = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', ' ', ib_meat, flags=re.I)
+    import pdb; pdb.set_trace()
+    ibc = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', '§', ib_meat, flags=re.I)
     ibc.replace("  ", " ")
-    ibc = re.sub('\n\s?\s\||\|\n\s', '\n|', ib_meat)
+    ibc = re.sub('\n\s\s?\||\|\n\s', '\n|', ib_meat)
+    ibc = re.sub("\[http.+\]", " ", ibc)
+    ibc = re.sub("titlestyle\s?\=.+[\||§]", " ", ibc)
+    ibc = re.sub(
+        "\{\{Collapsible\slist\|title\s?\=.+\||accessdate\s?\=.+§|{{\s?citation needed\s?\|\s?date\=",
+        "§", ibc, flags=re.I
+    )
 
     return ibc
 
@@ -200,7 +207,9 @@ def yolo_spl(text, sp, depth=1, op="{{", cl="}}"):
 
 def _is_noise(inp):
     xx = inp.strip()
-    return xx in ["", " ", "*", "\n"]
+    return xx in ["", " ", "*", "\n", "Released", "{{dts", "excl.", "}",
+                  "Original version", "cartridge", "-", "$CLT", "{{plainlist", "ndash", "{{Collapsible list", "{{Dts",
+                  "version", "<FB>", "{{ubl"]
 
 
 def _is_plat(inp):
@@ -208,6 +217,18 @@ def _is_plat(inp):
     for plt in PLATFORM_ALIASES.values():
         if xx in plt:
             return Platform(xx)
+
+        xx2 = xx.lower()
+        if "others" in xx2:
+            return Platform("<OTHERS>")
+        elif "8 bit" in xx2:
+            return Platform("<CATCHALL: 8-BIT>")
+        elif "16 bit" in xx2:
+            return Platform("<CATCHALL: 16-BIT>")
+        elif "ports" in xx2:
+            return Platform("<CATCHALL: ports>")
+        elif "re-released" in xx2:
+            return Platform("<CATCHALL: re-released>")
 
 
 def _is_date(inp):
@@ -217,13 +238,18 @@ def _is_date(inp):
         "%B %d, %Y",
         "%d %B %Y",
         "%b %d, %Y",
+        "%B %d %Y",
         "%B %Y",
         "%B, %Y",
+        "%b %Y",
+        "%B %dth %Y",
     ]
 
     for ptt in patterns:
         try:
             el = datetime.strptime(inp, ptt).date()
+            if el.year < 1970 or el.year > 2022:
+                raise ValueError("not a valid release year!")
             return el
         except ValueError:
             continue
@@ -258,7 +284,7 @@ def _is_region(inp):
 
 
 def extract_sequence(inp):
-    spl = re.split("§|\||\:|\[|\]|\(|\)|–", inp)
+    spl = re.split("§|\||\:|\[|\]|\(|\)|–|;|\sversion?", inp)
     sequence = []
     extracted_parts = []
     count = 0
@@ -266,6 +292,10 @@ def extract_sequence(inp):
         ss = spl[count]
         count += 1
         ss = ss.strip()
+        ss = ss.strip("'")
+        ss = ss.strip("*")
+        ss = ss.strip(",")
+
         if _is_noise(ss):
             continue
 
@@ -275,10 +305,15 @@ def extract_sequence(inp):
             extracted_parts.append(ss)
             continue
 
-        if "," in ss:
-            spl2 = ss.split(",")
-            spl = spl[:count] + spl2 + spl[count + 1:]
+        if ("," in ss and "Touch" not in ss) or ("/" in ss and ("Gen" not in ss or "Fami" not in ss)) or\
+           ("&" in ss) or (" and " in ss):
+            spl2 = re.split(",|/|\&|\sand\s", ss)
+            print(spl2)
+            spl = spl[:count - 1] + spl2 + spl[count:]
             ss = spl2[0]
+            # rewinding
+            count -= 1
+            continue
 
         el = _is_plat(ss)
         if el and isinstance(el, Platform):
@@ -290,7 +325,13 @@ def extract_sequence(inp):
             sequence.append(el)
             continue
 
-        # import pdb; pdb.set_trace()
+        print("what is this?")
+        print("what is this?")
+        print("what is this?")
+        print(ss)
+        print("====")
+
+        import pdb; pdb.set_trace()
 
     return sequence
 
@@ -320,10 +361,15 @@ def identify_sequence(sequence):
     elif len(out) > 2:
         if (out[0] is Platform and out[1] is Region and out[2] is date):
             return "P-R-D"
-        elif (out[0] is date and out[1] is Platform and out[2] is not Platform):
-            return "D-P"
-    elif len(out) >= 2 and (out[0] is Region and out[1] is date):
+        elif (out[0] is Region and out[1] is date and out[2] is Platform):
+            return "R-D-P"
+        elif (out[0] is Region and out[1] is date and out[2] is not Platform):
             return "R-D"
+        elif (out[0] is date and out[1] is Platform and out[2] is not Region):
+            return "D-P"
+    if len(out) >= 2 and (out[0] is Region and out[1] is date):
+        return "R-D"
+
     return "UNK %d - %s" % (len(out), out)
 
 # def sequence_d_p(sequence):
