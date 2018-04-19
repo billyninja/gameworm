@@ -234,13 +234,14 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
         #         if i % 2:
         #             arr2.append(sp)
         #     return arr2
-
-        v1 = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', '', vals, flags=re.I)
+        print(":::::", cti["released"])
+        v1 = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', '§', vals, flags=re.I)
         v1 = re.sub("{{ vg|{{vg|{{Video\sgame\s", "{{$VG", v1, flags=re.I)
         exp1 = "'''|',|\{\{\$VGrelease|\}\}|§,\s|§§|<br?\\>|''|{{\$VGy\||\n"
+        exp2 = "{{\s?Collapsible\slist\s?\|?(\stitle\s=\s[.]+\s\|)?"
         v2 = re.sub(exp1, "§", v1)
         v3 = re.sub(exp1, "§", v2)
-        v4 = re.sub(exp1, "§", v3)
+        v4 = re.sub(exp2, "§", v3)
         if "§" in v3:
             spl = v3.split("§")
             if v3.startswith("{{"):
@@ -249,7 +250,6 @@ def open_article(conn, src_title, src_platform_slug, is_redir=False):
             v4 = "§".join(parts)
 
         v4 = re.sub(exp1, "§", v4)
-
         def _acceptable(xpto):
             if xpto in ["{{collapsible list", ""]:
                 return False

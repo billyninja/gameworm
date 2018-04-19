@@ -38,44 +38,36 @@ if __name__ == "__main__":
     import json
     from time import sleep
 
-    # inp = 'Released:§*March 3, 1995 (Win)§*1996 (Mac)§*November 15, 2011, August 13, 2015 (iOS)§*2012 (Android)§*2014 (Linux)§*July 3, 2014 (Steam)§Re-released:§*January 12, 1999§*October 2005'
+    fh = open("samples.json", "r")
+    ct = fh.read()
+    cnt = 0
+    releases = json.loads(ct)
+    for rr in releases:
+        sq = extract_sequence(rr)
+        stype = identify_sequence(sq)
+        if stype == "P-R-D":
+            xx = sequence_p_r_d(sq)
+            print("PRD", len(xx))
+            cnt += 1
+            continue
 
-    # sq = extract_sequence(inp)
-    # print(sq)
-    # import pdb; pdb.set_trace()
-    # raise ValueError(1)
+        if stype == "R-D-P":
+            print("R-D-P")
+            cnt += 1
+        elif stype == "simple date":
+            cnt += 1
+            print("simple")
+        elif stype == "R-D":
+            cnt += 1
+            print("RD")
+        elif stype == "D-P":
+            cnt += 1
+            print("DP")
+        else:
+            print("x: miss", stype)
 
-    # fh = open("samples.json", "r")
-    # ct = fh.read()
-    # cnt = 0
-    # releases = json.loads(ct)
-    # for rr in releases:
-    #     sq = extract_sequence(rr)
-    #     stype = identify_sequence(sq)
-    #     if stype == "P-R-D":
-    #         xx = sequence_p_r_d(sq)
-    #         print("PRD", len(xx))
-    #         cnt += 1
-    #         continue
-
-    #     if stype == "R-D-P":
-    #         print("R-D-P")
-    #         cnt += 1
-    #     elif stype == "simple date":
-    #         cnt += 1
-    #         print("simple")
-    #     elif stype == "R-D":
-    #         cnt += 1
-    #         print("RD")
-    #     elif stype == "D-P":
-    #         cnt += 1
-    #         print("DP")
-    #     else:
-    #         import pdb; pdb.set_trace()
-    #         print("x: miss", stype)
-
-    # print(cnt)
-    # raise ValueError(1)
+    print(cnt)
+    raise ValueError(1)
     raws_path, run_partials_path = file_storage.check_and_config(imp="wiki")
     conn = Driver(imp="wiki", raws=raws_path)
 

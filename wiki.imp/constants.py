@@ -192,8 +192,8 @@ REGIONS = ["China", "Germany", "Poland", "PL", "Oceania", "OC", "South Korea", "
            "United States", "Spain", "France", "Italy", "RS", "AS", "ROK", "ISR", "HKG", "SWE", "BR", "KR", "INT",
            "CHN", "POL", "AUS", "AUT", "SK", "KP", "SA", "TUR", "UK", "USA", "US", "WW", "JP", "NZ", "RUS", "TWN",
            "Korea", "KOR", "NA", "EU", "JPN", "KO", "RU", "NZL", "MEX", "FRA", "FIN", "TW", "CA", "GOA", "AU", "THA",
-           "Taiwan", "CZ", "GER", "CZE", "BRA", "LA", "FR", "HK", "CAN", "IND", "DE", "PAL", "DEU", "ITA", "ESP", "EUR",
-           "SEA"]
+           "Taiwan", "CZ", "GER", "CZE", "BRA", "LA", "FR", "HK", "CAN", "IND", "DE", "PAL", "DEU", "ITA", "ESP",
+           "EUR", "SEA", "Worldwide"]
 
 # scrap article outcome
 class ArticleOutcome:

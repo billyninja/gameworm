@@ -94,7 +94,6 @@ def drop_none(d):
 
 
 def _infobox_pre_clean(ib_meat):
-    import pdb; pdb.set_trace()
     ibc = re.sub('id=\"|data-sort-value=\"|{{CITE WEB|<[^<]+?>', '§', ib_meat, flags=re.I)
     ibc.replace("  ", " ")
     ibc = re.sub('\n\s\s?\||\|\n\s', '\n|', ib_meat)
@@ -284,6 +283,28 @@ def _is_region(inp):
 
 
 def extract_sequence(inp):
+
+    excl_markup_1 = "{{\s?Collapsible\slist\s?\|(\s?title\s?=\s?)"
+    inp = re.sub(excl_markup_1, "", inp)
+
+    excl_markup_2 = "accessdate\s?=(.)+[§|\$]"
+    inp = re.sub(excl_markup_2, "", inp)
+
+    excl_markup_3 = "titlestyle\s?=(.)+;"
+    inp = re.sub(excl_markup_3, "", inp)
+
+    excl_markup_4 = "\[\[[0-9]{4}\sin\svideo gaming\|"
+    inp = re.sub(excl_markup_4, "", inp)
+
+    pre_spl_parts = []
+    date_pattern = "\{\{((start|release)\s?date|dts)\s?\|([0-9]{4})\|([0-9]{1,2})\|([0-9]{1,2})?"
+    resp = re.findall(date_pattern, inp)
+    if len(resp):
+        print("dt hit!")
+        pre_spl_parts.append(
+            date(int(resp[0][2]), int(resp[0][3]), int(resp[0][4]) if resp[0][4] else 1))
+        inp = re.sub(date_pattern, '', inp, flags=re.I)
+
     spl = re.split("§|\||\:|\[|\]|\(|\)|–|;|\sversion?", inp)
     sequence = []
     extracted_parts = []
