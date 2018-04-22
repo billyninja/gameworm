@@ -43,61 +43,6 @@ def outer_peel(content):
     return wpi, rev
 
 
-def inner_peel(rev):
-    field_hits = 0
-    expected_values = {
-        "title": None,
-        "image": None,
-        "caption": None,
-        "developer": None,
-        "publisher": None,
-        "designer": None,
-        "composer": None,
-        "engine": None,
-        "released": None,
-        "release": None,
-        "genre": None,
-        "modes": None,
-        "series": None,
-        "director": None,
-        "producer": None,
-        "programmer": None,
-        "artist": None,
-        "writer": None,
-        "platforms": None,
-        "creator": None,
-        "first release version": None,
-        "first release date": None,
-        "latest release version": None,
-        "latest release date": None,
-        "platform of origin": None,
-        "year of inception": None,
-        "spinoffs": None,
-        "first release": None,
-    }
-    expected_info_fields = expected_values.keys()
-    info_spl = yolo_spl(rev, "\n|")
-    for chunk in info_spl[1:]:
-        if "=" not in chunk:
-            continue
-
-        field, value = chunk.split("=", 1)
-        field = _clean_entry(field).lower()
-
-        if field in expected_info_fields:
-            if field == "release":
-                field = "released"
-
-            expected_values[field] = value.strip()
-            if len(expected_values[field]) > 0:
-                field_hits += 1
-        else:
-            print("unexpected field: ", field, "with value: ", value)
-
-    print("info hits: ", field_hits)
-    return drop_none(expected_values)
-
-
 ASSERTIVE_SUBJECTS = ["video game", "video games", "vg", "cvg"]
 CROSSMEDIA_SUBJECTS = ["media franchise", "animanga/header", "film", "television",
                        "toy", "character", "comics character", "game", "comic book title", "hollywood cartoon",

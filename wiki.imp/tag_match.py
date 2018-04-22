@@ -352,8 +352,6 @@ def extract_sequence(inp):
         print(ss)
         print("====")
 
-        import pdb; pdb.set_trace()
-
     return sequence
 
 
@@ -366,73 +364,6 @@ class Release:
 
     def __repr__(self):
         return "[%s, %s, %s]" % (self.platform.vl, self.region.vl, self.rdate.strftime("%B %d, %Y"))
-
-
-def identify_sequence(sequence):
-    prev = None
-    out = []
-    for x in sequence:
-        if prev == x.__class__:
-            continue
-        out.append(x.__class__)
-        prev = x.__class__
-
-    if len(out) == 1 and out[0] is date:
-        return "simple date"
-    elif len(out) > 2:
-        if (out[0] is Platform and out[1] is Region and out[2] is date):
-            return "P-R-D"
-        elif (out[0] is Region and out[1] is date and out[2] is Platform):
-            return "R-D-P"
-        elif (out[0] is Region and out[1] is date and out[2] is not Platform):
-            return "R-D"
-        elif (out[0] is date and out[1] is Platform and out[2] is not Region):
-            return "D-P"
-    if len(out) >= 2 and (out[0] is Region and out[1] is date):
-        return "R-D"
-
-    return "UNK %d - %s" % (len(out), out)
-
-# def sequence_d_p(sequence):
-#     out = []
-
-
-def sequence_p_r_d(sequence):
-    from copy import copy
-
-    out = []
-    closed = False
-    curr_sequence = []
-    for idx, si in enumerate(sequence):
-
-        if isinstance(si, Platform):
-            if closed:
-                out += copy(curr_sequence)
-                curr_sequence = []
-                closed = False
-
-            curr_sequence.append(Release(si))
-
-        if isinstance(si, Region):
-            ow = False
-            for ri in curr_sequence:
-                if ri.region is None:
-                    ri.region = si
-                    ow = True
-
-            if not ow:
-                ext = []
-                for rl in curr_sequence:
-                    ext.append(Release(rl.platform, si))
-                curr_sequence += ext
-
-        if isinstance(si, date):
-            for ri in curr_sequence:
-                if ri.rdate is None:
-                    ri.rdate = si
-                    closed = True
-
-    return out
 
 
 if __name__ == "__main__":

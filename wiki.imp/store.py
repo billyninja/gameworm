@@ -1,3 +1,6 @@
+"""Information containers organization."""
+
+
 class ArticleInfo:
 
     def __init__(self, src_title, final_title, wpi, infobox_subject, src_platform_slug, unspecific_article_type,
@@ -7,32 +10,43 @@ class ArticleInfo:
 
 class GameInfoCore:
 
-    def __init__(self, wpi, reliable, wikimedia_image, image_caption, plaforms, genres, game_modes):
+    def __init__(self, wpi, reliable, wikimedia_image, image_caption, platforms, genres, game_modes):
         pass
 
 
 class GameInfoAuthor:
 
-    def __init__(self, wpi, name, role, obs):
+    def __init__(self, wpi, name, role, obs=None):
         pass
 
 
 class GameInfoCompany:
 
-    def __init__(self, wpi, name, role, obs):
+    def __init__(self, wpi, name, role, obs=None):
+        pass
+
+
+class GameInfoGenre:
+
+    def __init__(self, wpi, name):
         pass
 
 
 class GameInfoEngine:
 
-    def __init__(self, wpi, name, obs):
+    def __init__(self, wpi, name, obs=None):
         pass
 
 
 class GameInfoRelease:
 
-    def __init__(self, wpi, region_code, plaform_slug, release_date, obs):
-        pass
+    def __init__(self, platform, region=None, rdate=None):
+        self.platform = platform
+        self.region = region
+        self.rdate = rdate
+
+    def __repr__(self):
+        return "[%s, %s, %s]" % (self.platform.code, self.region.vl, self.rdate.strftime("%B %d, %Y"))
 
 
 def insert_article_info(a, b, c, d):
