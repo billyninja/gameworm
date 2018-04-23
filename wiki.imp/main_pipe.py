@@ -56,6 +56,8 @@ NON_GAME_TITLES = [
     "[[Nintendo VS. System]]", "[[Open world|Sandbox]]", "[[3D computer graphics|3D]]", "[[DirectX 9]]", "[[IBM-PC]]",
     "[[Xbox One]]"
 ]
+
+
 EXPR = "(File\:|[0-9]{4}\sin|\(game(s)? publisher\)|\(publisher\)|\(game(s)? designer\)|\(composer\)|\(game(s)? programmer\)|\(game(s)? developer\)|\(video game(s)? designer\)|\(video game(s)? programmer\)|\(video game(s)? composer\)|\(software publisher\)|company\)|studios|Soft(ware)?|Co\.|Ltd\.|\[\[List(s)?\s|Entertainment)"
 
 

@@ -283,7 +283,7 @@ def inner_peel(rev):
 
 def _generic_list_extraction(val):
     val = prenorm(val)
-    return re.split("§|\|", val)
+    return re.split("§|\||,", val)
 
 
 def author_extraction(wpi, val, role):
@@ -538,9 +538,14 @@ def _assertive_proc(src_title, wpi, ib_subject, inp):
         if k in ["genre"]:
             genres += genre_extraction(wpi, val)
 
+    if not final_title:
+        final_title = src_title
+
     a_info = ArticleInfo(src_title, final_title, wpi, ib_subject, "MISSING-TODO", None, None)
-    g_core = GameInfoCore(wpi, True, img, img_caption, platforms, genres, modes)
-    insert_game_info(a_info, g_core, authors=authors, companies=companies, engines=engines, releases=game_releases)
+    g_core = GameInfoCore(wpi, True, img, img_caption, genres, modes)
+    t1 = datetime.now()
+    insert_game_info(a_info, g_core, platforms=platforms, authors=authors, companies=companies, engines=engines, releases=game_releases)
+    print(datetime.now() - t1)
 
     return "SS"
 
