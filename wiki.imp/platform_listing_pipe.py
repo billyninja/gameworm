@@ -44,9 +44,14 @@ def extract_from_list(working_set, content, title):
     print("# TODO, understand list markup properly!")
     print("# TODO, understand list markup properly!")
     print("# TODO, understand list markup properly!")
-    spl = content.split("[[")
+    spl = content.split("\n*")
+    # .split("|\'\'")
+    print(title)
+    print(len(spl))
+    if len(spl) < 20:
+        import pdb; pdb.set_trace()
+    print("====")
     for entry in spl:
-
         if ("List of" in entry) or ("Lists of" in entry) or ("Category:" in entry):
             continue
 

@@ -1,5 +1,4 @@
 """Core methods for find-data extraction/parsing."""
-
 import os
 import sys
 import re
@@ -9,7 +8,7 @@ from cons_platforms import PLATFORM_ALIASES
 from constants import REGIONS
 from tag_match import tag_match, yolo_spl, _clean_entry, drop_none
 from store import (ArticleInfo, GameInfoCore, GameInfoAuthor, GameInfoCompany,
-                   GameInfoEngine, GameInfoRelease, GameInfoGenre)
+                   GameInfoEngine, GameInfoRelease, GameInfoGenre, insert_game_info)
 sys.path.append('../')
 from gameworm import tty_colors
 
@@ -23,7 +22,7 @@ GAME_SERIES_SUBJECTS = ["video game series", "video games series", "vg series", 
 
 
 markup_rm = re.compile(",\s\[\[[0-9]{4}\sin\svideo\sgaming\||titlestyle")
-markup_sep1 = re.compile("({{collapsible list\s?\|\s?(title=\s?[\w+\s,]+)?|\/|<[^<]+?>|{{\s?[A-Za-z]+\s?\||'''|''|\[\[|\]\]|}}|\\n|\s?=\s?[a-z\-\s]+:.+(\;|\|)|{{\s?(vg|video game\s)release)", flags=re.I)
+markup_sep1 = re.compile("({{collapsible list\s?\|\s?(title=\s?[\w+\s,]+)?|\/|<[^<]+?>|{{\s?[A-Za-z]+\s?\||'''|''|\[\[|\]\]|}}|\\n|\s?=\s?([a-z\-]+:[a-z\s0-9]+(\;|\s\|))|{{\s?(vg|video game\s)release)", flags=re.I)
 markup_sep2 = re.compile("\s?§\s?\|?§?\s?")
 remove_date_commas = re.compile(
     "(\s[0-9]{1,2})?(Jan(uary)?|Feb(ruary)?|Mar(ch)|Apr(il)|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember))(\s[0-9]{1,2})?(?P<comma>\s?\,)"
@@ -35,7 +34,7 @@ special_date_pattern2 = re.compile(
     "(mid|late|early|q1|q2|q3|q4|fall|sprint|summer|winter|holidays)(-|\s)[0-9]{4}"
 )
 
-_isnoise = re.compile("\s?[\-\|\\|\[|\{|\}|\$\%|0-9|\?|\.|url]\s")
+_isnoise = re.compile("\s?[\-\|\\|\[|\{|\}|\$|\%|\?|\.|,|url]\s?")
 
 
 class Platform:
@@ -71,6 +70,9 @@ def _is_region(inp):
 
 
 def _is_date(inp):
+    if inp in ["TBA"]:
+        return date(2099, 1, 1)
+
     patterns = [
         "%B %d %Y",
         "%B %Y",
@@ -103,7 +105,18 @@ def _repl_dt_comma(mo):
 def _repl_special_dt(mo):
     span = mo.span()
     parts = mo.string[span[0] + 1:span[1] - 1].split("|")
-    dt = date(int(parts[0]), int(parts[1]), int(parts[2]) if len(parts) >= 2 else 1)
+    print(parts)
+    p3 = 1
+
+    try:
+        p3 = int(parts[3])
+        if p3 < 1 or p3 > 28:
+            raise ValueError("going with a safe day range")
+    except (ValueError, IndexError):
+        p3 = 1
+        pass
+
+    dt = date(int(parts[1]), int(parts[2]), p3)
 
     return dt.strftime("|%B %d %Y")
 
@@ -164,14 +177,26 @@ def is_plat(text):
 
 def outer_peel(raw_content):
     wpi = None
-    raw_content = json.loads(raw_content)
+    if isinstance(raw_content, dict):
+        pass
+    else:
+        raw_content = json.loads(raw_content)
+
     for lvl in ["query", "pages", "$PID", "revisions", 0, "*"]:
 
         if lvl == "$PID":
+
+            nk = len(raw_content)
+
             for k in raw_content.keys():
+
                 wpi = k
                 lvl = k
-                break
+                if nk > 1:
+                    if "game" in raw_content[k].get("title", "blank"):
+                        break
+                else:
+                    break
 
         if isinstance(lvl, str) and (lvl not in raw_content):
             print(tty_colors.danger(lvl, " not in content dict"))
@@ -188,12 +213,13 @@ def get_infobox(rev_content):
         si, sj = x.span()
         break
 
-    if not si:
+    if si is None:
         print(tty_colors.danger("Infobox not found!"))
         return None, False
 
     slic = rev_content[si:]
-    ib_subject = rev_content[sj + 1:].split("\n|", 1)[0]
+    ib_subject = rev_content[sj + 1:].split("|", 1)[0]
+    ib_subject = markup_sep1.sub("", ib_subject).strip()
     ib_content = tag_match(slic)
 
     return ib_subject, ib_content
@@ -257,7 +283,7 @@ def inner_peel(rev):
 
 def _generic_list_extraction(val):
     val = prenorm(val)
-    return val.split("§")
+    return re.split("§|\|", val)
 
 
 def author_extraction(wpi, val, role):
@@ -305,7 +331,7 @@ def id_sequence(sequence):
         prev = x.__class__
 
     if len(out) == 1 and out[0] is date:
-        return "simple date"
+        return "SIMPLE_DATE"
     elif len(out) > 2:
         if (out[0] is Platform and out[1] is Region and out[2] is date):
             return "P-R-D"
@@ -315,6 +341,11 @@ def id_sequence(sequence):
             return "R-D"
         elif (out[0] is date and out[1] is Platform and out[2] is not Region):
             return "D-P"
+        elif (out[0] is Platform and out[1] is Platform and out[2] is not Region):
+            return "D-P"
+
+    if len(out) >= 2 and (out[0] is Platform and out[1] is date):
+        return "P-D"
     if len(out) >= 2 and (out[0] is Region and out[1] is date):
         return "R-D"
 
@@ -363,13 +394,36 @@ def build_p_r_d(sequence):
     return out
 
 
+def build_p_d(sequence):
+    closed = False
+    out = []
+    for item in sequence:
+
+        if isinstance(item, Platform):
+            closed = False
+            out.append(GameInfoRelease(item))
+
+        if isinstance(item, date):
+            closed = True
+            for o in out:
+                if not o.rdate:
+                    o.rdate = item
+
+    return out
+
+
 def release_extraction(wpi, raw_val, platforms_fallback=[]):
     sequence = []
     inp = prenorm(raw_val)
+    if len(inp) <= 1:
+        return []
+
     vls = yank_forward(inp)
     for vv in vls:
         rg = pl = dt = None
         noise = bool(_isnoise.match(vv))
+        if noise:
+            continue
 
         rg = _is_region(vv)
         if rg:
@@ -382,38 +436,54 @@ def release_extraction(wpi, raw_val, platforms_fallback=[]):
             continue
 
         dt = _is_date(vv)
-        sequence.append(dt)
+        if dt:
+            sequence.append(dt)
 
-        if noise:
-            out = tty_colors.warning("NOISE", vv)
-        elif dt or rg or pl:
-            out = tty_colors.success(vv, dt, rg, pl)
-        else:
-            out = tty_colors.danger("UNRECOGNIZED", vv, dt, rg, pl)
-        print(out)
+        # if noise:
+        #     out = tty_colors.warning("NOISE", vv)
+        # elif dt or rg or pl:
+        #     out = tty_colors.success(vv, dt, rg, pl)
+        # else:
+        #     out = tty_colors.danger("UNRECOGNIZED", vv, dt, rg, pl)
+        # print(out)
 
     sq_type = id_sequence(sequence)
     if sq_type == "R-D" and platforms_fallback:
         sequence = platforms_fallback + sequence
         sq_type = "P-R-D"
 
+    if sq_type == "SIMPLE_DATE" and platforms_fallback:
+        sequence = platforms_fallback + sequence
+        sq_type = "P-D"
+
     if sq_type == "P-R-D":
         return build_p_r_d(sequence)
+    if sq_type == "P-D":
+        return build_p_d(sequence)
     else:
-        if not sequence and platforms_fallback:
+        if (not sequence or sequence[0] is None) and platforms_fallback:
             return release_last_effort(raw_val, platforms_fallback)
-        import pdb; pdb.set_trace()
+
+        print(sq_type)
+        print(sq_type)
+        print(sq_type)
+
+        return release_last_effort(raw_val, platforms_fallback)
 
     return []
 
 
 def release_last_effort(val, platforms):
     gr = None
+    val = prenorm(val)
     dt = re.findall("[0-9]{4}", val)
     if not dt:
-        return None
+        return []
 
     dt = _is_date(dt[0])
+    if not platforms:
+        platforms = [Platform("FIXME")]
+
     gr = GameInfoRelease(platforms[0], rdate=dt)
     rg = re.findall("[A-Z]{2,3}", val)
     if rg:
@@ -423,24 +493,9 @@ def release_last_effort(val, platforms):
     return [gr]
 
 
-def _trial(src_title, content):
-
-    print("\n====\n")
-    wpi, rev = outer_peel(content)
-    if not wpi or not rev:
-        return
-
-    ib_subject, inp = get_infobox(rev)
-    if not ib_subject or not inp:
-        return
+def _assertive_proc(src_title, wpi, ib_subject, inp):
 
     info_kv = inner_peel(inp)
-
-    reliable = ib_subject in ASSERTIVE_SUBJECTS
-    if not reliable:
-        skip_msg = tty_colors.warning("Skipping. Src Title: %s Subject: %s" % (src_title, ib_subject))
-        print(skip_msg)
-        return
 
     final_title, img, img_caption = None, None, None
     authors, game_releases, companies, engines, platforms, modes, genres = [], [], [], [], [], [], []
@@ -448,6 +503,10 @@ def _trial(src_title, content):
         platforms = platform_extraction(wpi, info_kv["platforms"])
 
     for k, val in info_kv.items():
+        if not val or len(val) == 1:
+            print(tty_colors.warning("blank val for key %s" % k))
+            continue
+
         if k == "title":
             final_title = val
 
@@ -480,22 +539,69 @@ def _trial(src_title, content):
             genres += genre_extraction(wpi, val)
 
     a_info = ArticleInfo(src_title, final_title, wpi, ib_subject, "MISSING-TODO", None, None)
-    g_core = GameInfoCore(wpi, reliable, img, img_caption, platforms, genres, modes)
+    g_core = GameInfoCore(wpi, True, img, img_caption, platforms, genres, modes)
+    insert_game_info(a_info, g_core, authors=authors, companies=companies, engines=engines, releases=game_releases)
 
-    print(a_info, g_core)
-    print("\n====\n")
+    return "SS"
+
+
+def macro(conn, ent):
+
+    ent = re.sub("\[\[|\]\]", '', ent).strip()
+    resp_ct = conn.fetch(ent)
+
+    wpi, rev = outer_peel(resp_ct)
+    if not wpi or not rev:
+        return "E1"
+
+    should_redir = re.search("\#redirect", rev, flags=re.I)
+    if should_redir:
+        redir_to = re.findall("\[\[(.+)\]\]", rev, flags=re.I)
+        if redir_to:
+            print(tty_colors.success("REDIR FROM: %s TO: %s." % (ent, redir_to[0])))
+            return macro(conn, redir_to[0])
+
+    ib_subject, inp = get_infobox(rev)
+    if not ib_subject or not inp:
+        return "E2"
+
+    ib_subject = ib_subject.lower()
+    assertive = ib_subject in ASSERTIVE_SUBJECTS
+
+    if assertive:
+        return _assertive_proc(ent, wpi, ib_subject, inp)
+
+    game_series = ib_subject in GAME_SERIES_SUBJECTS
+    if game_series:
+        return "VGS"
+
+    cross = ib_subject in CROSSMEDIA_SUBJECTS
+    if cross:
+        print("TODO-CROSSMEDIA CONFIRMATION")
+        return "CM"
+
+    # skip_msg = tty_colors.danger("Skipping. Src Title: %s Subject: %s" % (ent, ib_subject))
+    # print(skip_msg)
+    return "E3"
 
 
 if __name__ == "__main__":
-
-    #print(yank_forward('MSX§1986§NES§February 6 1987'))
-
+    stats = {}
+    ecount = 0
     raws_path = "/home/joao/projetos/gameworm/.data/wiki/raws/"
     for ent in os.listdir(raws_path):
+        ecount += 1
         fpath = os.path.join(raws_path, ent)
         fh = open(fpath, "r")
         ct = fh.read()
         fh.close()
         t1 = datetime.now()
-        _trial(ent, ct)
+        out = macro(ent, ct)
+
+        if out not in stats:
+            stats.update({out: 1})
+        else:
+            stats[out] += 1
         print((datetime.now() - t1).total_seconds())
+    print(ecount)
+    print(stats)

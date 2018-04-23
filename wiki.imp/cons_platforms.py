@@ -1,6 +1,7 @@
 """quick and dirt grouping."""
 
 PLATFORM_ALIASES = {
+    "FIXME": ["UNINDENTIFIED PLATFORM"],
     "ARC": ["ARC", "Arcade", "Arcade game", "arcade", "CP System II", "Taito Type X", "Sega Mega-Tech", "Mega-Tech",
             "Sega X Board", "X Board", "Arcade version", "Neo Geo MVS", "Sega NAOMI"],
 
