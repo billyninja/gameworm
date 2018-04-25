@@ -37,7 +37,7 @@ CREATE TABLE public.assertive_game_info
     wiki_page_id    integer NOT NULL,
     reliable        boolean NOT NULL,
     wikimedia_image character varying(256),
-    image_caption   character varying(256),
+    image_caption   character varying(512),
     game_modes      character varying(128)[],
     genres          character varying(128)[],
     CONSTRAINT assertive_game_info_pkey PRIMARY KEY (pk)
@@ -63,20 +63,6 @@ ALTER TABLE game_info_engine ALTER COLUMN pk SET NOT NULL;
 ALTER SEQUENCE game_engine_pk_seq OWNED BY game_info_engine.pk;
 
 
-CREATE TABLE public.game_info_genre(
-    pk integer NOT NULL,
-    game_wpi integer NOT NULL,
-    genre character varying(128) NOT NULL,
-    CONSTRAINT game_info_genre_pkey PRIMARY KEY (pk)
-);
-
-CREATE SEQUENCE game_genre_pk_seq;
-ALTER TABLE game_info_genre ALTER COLUMN pk SET DEFAULT nextval('game_genre_pk_seq');
-ALTER TABLE game_info_genre ALTER COLUMN pk SET NOT NULL;
-ALTER SEQUENCE game_genre_pk_seq OWNED BY game_info_genre.pk;
-
-
-
 CREATE TABLE public.game_info_platform(
     pk integer NOT NULL,
     game_wpi integer NOT NULL,
@@ -94,7 +80,7 @@ ALTER SEQUENCE game_platform_pk_seq OWNED BY game_info_platform.pk;
 CREATE TABLE public.game_info_author(
     pk integer NOT NULL,
     game_wpi integer NOT NULL,
-    author_role character varying(32),   -- designer/programmer/director/producer/composer/writer
+    author_role character varying(32) NOT NULL,   -- designer/programmer/director/producer/composer/writer
     name character varying(128) NOT NULL,
     obs character varying(256),
     CONSTRAINT game_info_author_pkey PRIMARY KEY (pk)
@@ -109,8 +95,8 @@ ALTER SEQUENCE game_author_pk_seq OWNED BY game_info_author.pk;
 CREATE TABLE public.game_info_company(
     pk integer NOT NULL,
     game_wpi integer NOT NULL,
-    company_role character varying(32),   -- designer/programmer/director/producer/composer/writer
-    company_name character varying(64) NOT NULL,
+    company_role character varying(32) NOT NULL,   -- designer/programmer/director/producer/composer/writer
+    company_name character varying(128) NOT NULL,
     obs character varying(256),
     CONSTRAINT game_info_company_pkey PRIMARY KEY (pk)
 );

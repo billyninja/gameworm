@@ -4,14 +4,14 @@ import sys
 import re
 import json
 from datetime import date, datetime
+from normalization import author_role
 from cons_platforms import PLATFORM_ALIASES
-from constants import REGIONS
+from region_tree import search_region_tree
 from tag_match import tag_match, yolo_spl, _clean_entry, drop_none
 from store import (ArticleInfo, GameInfoCore, GameInfoAuthor, GameInfoCompany,
                    GameInfoEngine, GameInfoRelease, GameInfoGenre, insert_game_info)
 sys.path.append('../')
 from gameworm import tty_colors
-
 
 ASSERTIVE_SUBJECTS = ["video game", "video games", "vg", "cvg"]
 CROSSMEDIA_SUBJECTS = ["media franchise", "animanga/header", "film", "television",
@@ -62,9 +62,9 @@ class Region:
 
 
 def _is_region(inp):
-    xx = inp.strip()
-    if xx in REGIONS:
-        return Region(xx)
+    out = search_region_tree(inp)
+    if out:
+        return Region(out)
 
     return None
 
@@ -283,16 +283,23 @@ def inner_peel(rev):
 
 def _generic_list_extraction(val):
     val = prenorm(val)
-    return re.split("§|\||,", val)
+    val = re.sub('<[^<]+?>|\[|\]|http://.+|\(.+\)', '', val)
+    return re.split("§|\||,|;", val)
 
 
 def author_extraction(wpi, val, role):
-    values = _generic_list_extraction(val)
-    return [GameInfoAuthor(wpi, val, role) for val in values]
+    val2 = re.sub("<[^<]+?>|http://.+?(\||\])|\[|\]|\(.+\)", "§", val)
+    val2 = set([x.strip().title() for x in re.split(",|§|;|\\n", val2)])
+    out = []
+    for val in val2:
+        if len(val) > 5 and not re.findall("[^\w\s\.\']", val, flags=re.I):
+            out.append(GameInfoAuthor(wpi, val, role))
+
+    return out
 
 
 def engine_extraction(wpi, val):
-    values = _generic_list_extraction(val)
+    values = list(set(re.findall("\[\[.+?\]\]", val)))
     return [GameInfoEngine(wpi, vv) for vv in values]
 
 
@@ -302,23 +309,24 @@ def mode_extraction(wpi, val):
 
 
 def platform_extraction(wpi, val):
-    values = _generic_list_extraction(val)
+    values = list(set(re.findall("\[\[.+?\]\]", val)))
     out = []
     for vv in values:
         el = is_plat(vv)
         if el:
             out.append(el)
+
     return out
 
 
 def genre_extraction(wpi, val):
-    values = _generic_list_extraction(val)
+    values = list(set(re.findall("\[\[.+?\]\]", val)))
     return [GameInfoGenre(wpi, vv) for vv in values]
 
 
 def company_extraction(wpi, val, role):
-    values = _generic_list_extraction(val)
-    return [GameInfoCompany(wpi, vv, role) for vv in values]
+    values = list(set(re.findall("\[\[.+?\]\]", val)))
+    return [GameInfoCompany(wpi, re.sub("\#.+?\]", "", vv), role) for vv in values]
 
 
 def id_sequence(sequence):
@@ -511,13 +519,14 @@ def _assertive_proc(src_title, wpi, ib_subject, inp):
             final_title = val
 
         if k == "image":
-            img = val
+            img = re.sub(r"File:|\[|\]|alt\=.+|Image:|\|.+", "", val)
 
         if k == "caption":
             img_caption = val
 
-        if k in ["designer", "director", "producer", "programmer", "creator", "artist", "writer", "composer"]:
-            authors += author_extraction(wpi, val, k)
+        auth_role = author_role(k)
+        if auth_role[0]:
+            authors += author_extraction(wpi, val, auth_role[1])
 
         if k in ["released", "release", "first release version", "first release date", "latest release version",
                  "latest release date", "year of inception", "first release"]:
@@ -545,7 +554,7 @@ def _assertive_proc(src_title, wpi, ib_subject, inp):
     g_core = GameInfoCore(wpi, True, img, img_caption, genres, modes)
     t1 = datetime.now()
     insert_game_info(a_info, g_core, platforms=platforms, authors=authors, companies=companies, engines=engines, releases=game_releases)
-    print(datetime.now() - t1)
+    print(final_title, tty_colors.success((datetime.now() - t1).total_seconds()))
 
     return "SS"
 
@@ -561,10 +570,10 @@ def macro(conn, ent):
 
     should_redir = re.search("\#redirect", rev, flags=re.I)
     if should_redir:
-        redir_to = re.findall("\[\[(.+)\]\]", rev, flags=re.I)
+        redir_to = re.findall("\[\[.+?\]\]", rev, flags=re.I)
         if redir_to:
             print(tty_colors.success("REDIR FROM: %s TO: %s." % (ent, redir_to[0])))
-            return macro(conn, redir_to[0])
+            return macro(conn, redir_to[0].strip("[").strip("]"))
 
     ib_subject, inp = get_infobox(rev)
     if not ib_subject or not inp:

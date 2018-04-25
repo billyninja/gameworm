@@ -29,4 +29,7 @@ class Driver:
         if self.raws:
             file_storage.store_raw(self.raws, title, resp)
 
-        return json.loads(resp)
+        try:
+            return json.loads(resp)
+        except Exception as e:
+            import pdb; pdb.set_trace()

@@ -1,4 +1,5 @@
 """Information containers organization."""
+import re
 import psycopg2
 
 
@@ -121,6 +122,19 @@ VALUES (%s, %s, %s, %s);
 """
 
 
+def _cleanup(inp):
+    if isinstance(inp, str):
+        inp2 = re.sub("(\[\[|\]\]|\|\s?alt\=.+)", "", inp)
+        return inp2
+
+    return inp
+
+
+def clean_and_ex(cur, base, params):
+    [_cleanup(pr) for pr in params]
+    cur.execute(base, params)
+
+
 def insert_game_info(article_info, game_info_core, platforms=[], authors=[], companies=[], engines=[], releases=[]):
     cur = conn.cursor()
 
@@ -128,28 +142,44 @@ def insert_game_info(article_info, game_info_core, platforms=[], authors=[], com
     ga = article_info
     params1 = [ga.src_title, ga.final_title, ga.wpi, ga.infobox_subject, ga.src_platform_slug, False,
                None, ga.uat_section_pointer]
-    cur.execute(ARTICLE_INSERT, params1)
+    try:
+        cur.execute(ARTICLE_INSERT, params1)
+    except Exception as e:
+        import pdb; pdb.set_trace()
 
     gi = game_info_core
     params2 = [gi.wpi, gi.reliable, gi.wikimedia_image, gi.image_caption,
                [x.name for x in gi.genres], gi.game_modes]
-    cur.execute(GAME_INFO_INSERT, params2)
+
+    try:
+        clean_and_ex(cur, GAME_INFO_INSERT, params2)
+    except Exception as e:
+        import pdb; pdb.set_trace()
 
     for plat in platforms:
         params3 = [ga.wpi, plat.code]
-        cur.execute(PLATFORM_INSERT, params3)
+        try:
+            clean_and_ex(cur, PLATFORM_INSERT, params3)
+        except Exception as e:
+            import pdb; pdb.set_trace()
 
     for auth in authors:
         params3 = [auth.wpi, auth.role, auth.name]
-        cur.execute(AUTHOR_INSERT, params3)
+        try:
+            clean_and_ex(cur, AUTHOR_INSERT, params3)
+        except Exception as e:
+            import pdb; pdb.set_trace()
 
     for comp in companies:
         params3 = [comp.wpi, comp.role, comp.name]
-        cur.execute(COMPANY_INSERT, params3)
+        try:
+            clean_and_ex(cur, COMPANY_INSERT, params3)
+        except Exception as e:
+            import pdb; pdb.set_trace()
 
     for eng in engines:
         params3 = [eng.wpi, eng.name]
-        cur.execute(ENGINE_INSERT, params3)
+        clean_and_ex(cur, ENGINE_INSERT, params3)
 
     for rel in releases:
         reg = "U/N"
