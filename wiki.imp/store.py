@@ -81,7 +81,19 @@ INSERT INTO article_info(
     franchise_article,
     unassertive_article_type,
     UAT_section_pointer
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (wiki_page_id) DO
+UPDATE
+SET
+    source_title = %s,
+    final_title = %s,
+    wiki_page_id = %s,
+    main_infobox_subject = %s,
+    source_platform_slug = %s,
+    franchise_article = %s,
+    unassertive_article_type = %s,
+    UAT_section_pointer = %s,
+    updated_at = NOW()
 """
 
 GAME_INFO_INSERT = """
@@ -92,33 +104,72 @@ INSERT INTO assertive_game_info(
     image_caption,
     genres,
     game_modes
-) VALUES (%s, %s, %s, %s, %s, %s);
+) VALUES (%s, %s, %s, %s, %s, %s)
+ON CONFLICT (wiki_page_id) DO
+UPDATE
+SET
+    wiki_page_id = %s,
+    reliable = %s,
+    wikimedia_image = %s,
+    image_caption = %s,
+    genres = %s,
+    game_modes = %s,
+    updated_at = NOW()
 """
 
 AUTHOR_INSERT = """
 INSERT INTO game_info_author(game_wpi, author_role, name)
-VALUES (%s, %s, %s);
+VALUES (%s, %s, %s)
+ON CONFLICT (game_wpi, author_role, name) DO
+UPDATE
+SET
+    game_wpi = %s,
+    author_role = %s,
+    name = %s;
 """
 
 COMPANY_INSERT = """
 INSERT INTO game_info_company(game_wpi, company_role, company_name)
-VALUES (%s, %s, %s);
+VALUES (%s, %s, %s)
+ON CONFLICT (game_wpi, company_role, company_name) DO
+UPDATE
+SET
+    game_wpi = %s,
+    company_role = %s,
+    company_name = %s;
 """
 
 ENGINE_INSERT = """
 INSERT INTO game_info_engine(game_wpi, name)
-VALUES (%s, %s);
+VALUES (%s, %s)
+ON CONFLICT (game_wpi, name) DO
+UPDATE
+SET
+    game_wpi = %s,
+    name = %s;
 """
 
 
 PLATFORM_INSERT = """
 INSERT INTO game_info_platform(game_wpi, platform_code)
-VALUES (%s, %s);
+VALUES (%s, %s)
+ON CONFLICT (game_wpi, platform_code) DO
+UPDATE
+SET
+    game_wpi = %s,
+    platform_code = %s;
 """
 
 RELEASE_INSERT = """
 INSERT INTO game_info_release(game_wpi, region_code, platform_slug, release_date)
-VALUES (%s, %s, %s, %s);
+VALUES (%s, %s, %s, %s)
+ON CONFLICT (game_wpi, region_code, platform_slug) DO
+UPDATE
+SET
+    game_wpi = %s,
+    region_code = %s,
+    platform_slug = %s,
+    release_date = %s;
 """
 
 
@@ -132,54 +183,47 @@ def _cleanup(inp):
 
 def clean_and_ex(cur, base, params):
     [_cleanup(pr) for pr in params]
-    cur.execute(base, params)
+
+    try:
+        cur.execute(base, params)
+    except Exception as ex:
+        print(cur.mogrify(base, params))
+        raise ex
 
 
 def insert_game_info(article_info, game_info_core, platforms=[], authors=[], companies=[], engines=[], releases=[]):
     cur = conn.cursor()
 
-    # TODO - bulk! atomic!
     ga = article_info
-    params1 = [ga.src_title, ga.final_title, ga.wpi, ga.infobox_subject, ga.src_platform_slug, False,
-               None, ga.uat_section_pointer]
-    try:
-        cur.execute(ARTICLE_INSERT, params1)
-    except Exception as e:
-        import pdb; pdb.set_trace()
+    params1 = [ga.src_title, ga.final_title, ga.wpi, ga.infobox_subject, ga.src_platform_slug, False, None,
+               ga.uat_section_pointer]
+
+    cur.execute(ARTICLE_INSERT, params1 + params1)
 
     gi = game_info_core
     params2 = [gi.wpi, gi.reliable, gi.wikimedia_image, gi.image_caption,
                [x.name for x in gi.genres], gi.game_modes]
 
     try:
-        clean_and_ex(cur, GAME_INFO_INSERT, params2)
+        clean_and_ex(cur, GAME_INFO_INSERT, params2 + params2)
     except Exception as e:
         import pdb; pdb.set_trace()
 
     for plat in platforms:
         params3 = [ga.wpi, plat.code]
-        try:
-            clean_and_ex(cur, PLATFORM_INSERT, params3)
-        except Exception as e:
-            import pdb; pdb.set_trace()
+        clean_and_ex(cur, PLATFORM_INSERT, params3 + params3)
 
     for auth in authors:
         params3 = [auth.wpi, auth.role, auth.name]
-        try:
-            clean_and_ex(cur, AUTHOR_INSERT, params3)
-        except Exception as e:
-            import pdb; pdb.set_trace()
+        clean_and_ex(cur, AUTHOR_INSERT, params3 + params3)
 
     for comp in companies:
         params3 = [comp.wpi, comp.role, comp.name]
-        try:
-            clean_and_ex(cur, COMPANY_INSERT, params3)
-        except Exception as e:
-            import pdb; pdb.set_trace()
+        clean_and_ex(cur, COMPANY_INSERT, params3 + params3)
 
     for eng in engines:
         params3 = [eng.wpi, eng.name]
-        clean_and_ex(cur, ENGINE_INSERT, params3)
+        clean_and_ex(cur, ENGINE_INSERT, params3 + params3)
 
     for rel in releases:
         reg = "U/N"
@@ -191,7 +235,7 @@ def insert_game_info(article_info, game_info_core, platforms=[], authors=[], com
             plat = rel.platform.code
 
         params3 = [ga.wpi, reg, plat, rel.rdate]
-        cur.execute(RELEASE_INSERT, params3)
+        cur.execute(RELEASE_INSERT, params3 + params3)
 
     cur.close()
     conn.commit()

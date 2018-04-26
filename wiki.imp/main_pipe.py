@@ -106,9 +106,15 @@ def _out_stats(stats):
 
 if __name__ == "__main__":
     from extract_info import macro
+    import sys
+    dir(sys)
+
+    work_offline = "--offline" in sys.argv[1:]
 
     raws_path, run_partials_path = file_storage.check_and_config(imp="wiki")
-    conn = Driver(imp="wiki", raws=raws_path)
+    conn = Driver(imp="wiki", raws=raws_path, work_offline=work_offline)
+
+    xx = macro(conn, "Philips Videopac + G7400")
 
     all_leads = explode_lists(conn, run_partials_path)
     stats = {}

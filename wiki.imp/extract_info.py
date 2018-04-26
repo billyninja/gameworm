@@ -293,6 +293,8 @@ def author_extraction(wpi, val, role):
     out = []
     for val in val2:
         if len(val) > 5 and not re.findall("[^\w\s\.\']", val, flags=re.I):
+            if len(val) > 128:
+                import pdb; pdb.set_trace()
             out.append(GameInfoAuthor(wpi, val, role))
 
     return out
@@ -304,8 +306,7 @@ def engine_extraction(wpi, val):
 
 
 def mode_extraction(wpi, val):
-    values = _generic_list_extraction(val)
-    return values
+    return re.findall('\[\[.+?\]\]', val)
 
 
 def platform_extraction(wpi, val):
@@ -516,17 +517,17 @@ def _assertive_proc(src_title, wpi, ib_subject, inp):
             continue
 
         if k == "title":
-            final_title = val
+            final_title = re.sub("<[^<]+?>|http://.+?(\||\])|\[|\]|\(.+\)|\{\{.+?\}\}", "", val)
 
         if k == "image":
             img = re.sub(r"File:|\[|\]|alt\=.+|Image:|\|.+", "", val)
 
         if k == "caption":
-            img_caption = val
+            img_caption = re.sub("<[^<]+?>|http://.+?(\||\])|\[|\]|\(.+\)|\{\{.+?\}\}", "", val)
 
         auth_role = author_role(k)
         if auth_role[0]:
-            authors += author_extraction(wpi, val, auth_role[1])
+            authors += author_extraction(wpi, val, auth_role[2])
 
         if k in ["released", "release", "first release version", "first release date", "latest release version",
                  "latest release date", "year of inception", "first release"]:
@@ -553,16 +554,19 @@ def _assertive_proc(src_title, wpi, ib_subject, inp):
     a_info = ArticleInfo(src_title, final_title, wpi, ib_subject, "MISSING-TODO", None, None)
     g_core = GameInfoCore(wpi, True, img, img_caption, genres, modes)
     t1 = datetime.now()
-    insert_game_info(a_info, g_core, platforms=platforms, authors=authors, companies=companies, engines=engines, releases=game_releases)
+    insert_game_info( a_info, g_core, platforms=platforms, authors=authors, companies=companies, engines=engines, releases=game_releases)
     print(final_title, tty_colors.success((datetime.now() - t1).total_seconds()))
 
     return "SS"
 
 
-def macro(conn, ent):
+def macro(conn, ent, did_redir=None):
 
     ent = re.sub("\[\[|\]\]", '', ent).strip()
-    resp_ct = conn.fetch(ent)
+    try:
+        resp_ct = conn.fetch(ent)
+    except Exception as e:
+        return "E0"
 
     wpi, rev = outer_peel(resp_ct)
     if not wpi or not rev:
@@ -572,8 +576,12 @@ def macro(conn, ent):
     if should_redir:
         redir_to = re.findall("\[\[.+?\]\]", rev, flags=re.I)
         if redir_to:
-            print(tty_colors.success("REDIR FROM: %s TO: %s." % (ent, redir_to[0])))
-            return macro(conn, redir_to[0].strip("[").strip("]"))
+            redir_to = redir_to[0].strip("[").strip("]")
+            if redir_to and ent:
+                return "E1"
+
+            print(tty_colors.success("REDIR FROM: %s TO: %s." % (ent, redir_to)))
+            return macro(conn, redir_to, did_redir=True)
 
     ib_subject, inp = get_infobox(rev)
     if not ib_subject or not inp:
